@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String           @id @default(uuid())
+  code         Int              @unique @default(autoincrement())
+  email        String           @unique
+  password     String
+  name         String?
+  role         Role             @default(USER)
+  reservations Reservation[]
+  permissions  UserPermission[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+  INVITED
+}
+
+model Permission {
+  id             String           @id @default(uuid())
+  module         String           // e.g., "BIKES", "USERS", "STATIONS"
+  action         String           // e.g., "CREATE", "READ", "UPDATE", "DELETE"
+  type           String           // e.g., "PAGE" (viewing module) or "ACTION" (CRUD)
+  createdAt      DateTime         @default(now())
+  roleAccess     RolePermission[]
+  userOverrides  UserPermission[]
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  role         Role
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+}
+
+model UserPermission {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  allowed      Boolean
+
+  @@unique([userId, permissionId])
+}
+
+model Station {
+  id        String   @id @default(uuid())
+  code      Int      @unique @default(autoincrement())
+  name      String
+  latitude  Float
+  longitude Float
+  address   String?
+  bikes     Bike[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Bike {
+  id           String        @id @default(uuid())
+  code         Int           @unique @default(autoincrement())
+  status       BikeStatus    @default(AVAILABLE)
+  stationId    String?
+  station      Station?      @relation(fields: [stationId], references: [id])
+  reservations Reservation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+enum BikeStatus {
+  AVAILABLE
+  RESERVED
+  MAINTENANCE
+}
+
+model Reservation {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  bikeId    String
+  bike      Bike              @relation(fields: [bikeId], references: [id])
+  status    ReservationStatus @default(ACTIVE)
+  startTime DateTime          @default(now())
+  endTime   DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+enum ReservationStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}

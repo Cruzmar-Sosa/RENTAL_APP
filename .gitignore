@@ -1,0 +1,27 @@
+# Node / NestJS
+node_modules/
+dist/
+.env
+
+# Prisma
+prisma/migrations/
+prisma/dev.db
+
+# Archivos sensibles
+*.xlsx
+*.log
+
+# IDEs
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Frontend compilado
+frontend/dist/
+frontend/node_modules/
+
+#docs
+docs/architecture.md
