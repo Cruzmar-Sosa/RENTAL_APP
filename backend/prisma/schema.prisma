@@ -3,8 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
 }
+
+// ─────────────────────────────────────────────
+// AUTH & PERMISSIONS
+// ─────────────────────────────────────────────
 
 model User {
   id           String           @id @default(uuid())
@@ -12,11 +16,14 @@ model User {
   email        String           @unique
   password     String
   name         String?
+  phone        String?
   role         Role             @default(USER)
   reservations Reservation[]
   permissions  UserPermission[]
+  payments     Payment[]
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+  deletedAt    DateTime?
 }
 
 enum Role {
@@ -26,14 +33,17 @@ enum Role {
 }
 
 model Permission {
-  id             String           @id @default(uuid())
-  module         String           // e.g., "BIKES", "USERS", "STATIONS"
-  action         String           // e.g., "CREATE", "READ", "UPDATE", "DELETE"
-  type           String           // e.g., "PAGE" (viewing module) or "ACTION" (CRUD)
-  createdAt      DateTime         @default(now())
-  roleAccess     RolePermission[]
-  userOverrides  UserPermission[]
+  id            String           @id @default(uuid())
+  module        String           // e.g., "BIKES", "USERS", "STATIONS"
+  action        String           // e.g., "CREATE", "READ", "UPDATE", "DELETE", "PAGE"
+  type          String           // "PAGE" or "ACTION"
+  createdAt     DateTime         @default(now())
+  roleAccess    RolePermission[]
+  userOverrides UserPermission[]
+
+  @@unique([module, action])
 }
+
 
 model RolePermission {
   id           String     @id @default(uuid())
@@ -55,6 +65,10 @@ model UserPermission {
   @@unique([userId, permissionId])
 }
 
+// ─────────────────────────────────────────────
+// STATIONS & BIKES
+// ─────────────────────────────────────────────
+
 model Station {
   id        String   @id @default(uuid())
   code      Int      @unique @default(autoincrement())
@@ -62,43 +76,133 @@ model Station {
   latitude  Float
   longitude Float
   address   String?
+  capacity  Int      @default(10)
   bikes     Bike[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 }
 
 model Bike {
-  id           String        @id @default(uuid())
-  code         Int           @unique @default(autoincrement())
-  status       BikeStatus    @default(AVAILABLE)
+  id           String         @id @default(uuid())
+  code         Int            @unique @default(autoincrement())
+  model        String?
+  batteryLevel Int            @default(100) // percentage 0–100
+  status       BikeStatus     @default(AVAILABLE)
   stationId    String?
-  station      Station?      @relation(fields: [stationId], references: [id])
+  station      Station?       @relation(fields: [stationId], references: [id])
   reservations Reservation[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  locations    BikeLocation[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
 }
 
 enum BikeStatus {
   AVAILABLE
-  RESERVED
+  IN_USE
   MAINTENANCE
 }
 
-model Reservation {
-  id        String            @id @default(uuid())
-  userId    String
-  user      User              @relation(fields: [userId], references: [id])
+model BikeLocation {
+  id        String   @id @default(uuid())
   bikeId    String
-  bike      Bike              @relation(fields: [bikeId], references: [id])
-  status    ReservationStatus @default(ACTIVE)
-  startTime DateTime          @default(now())
-  endTime   DateTime?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  bike      Bike     @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+  latitude  Float
+  longitude Float
+  speed     Float    @default(0) // km/h
+  timestamp DateTime @default(now())
+
+  @@index([bikeId, timestamp])
+}
+
+// ─────────────────────────────────────────────
+// RESERVATIONS
+// ─────────────────────────────────────────────
+
+model Reservation {
+  id             String            @id @default(uuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
+  bikeId         String
+  bike           Bike              @relation(fields: [bikeId], references: [id])
+  status         ReservationStatus @default(CONFIRMED)
+  startTime      DateTime          @default(now())   // when reservation was created
+  endTime        DateTime?                           // expected end (optional)
+  actualStart    DateTime?                           // when ride actually started
+  actualEnd      DateTime?                           // when ride actually ended
+  priceEstimated Float?                              // calculated on create
+  priceActual    Float?                              // calculated on complete
+  payment        Payment?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 }
 
 enum ReservationStatus {
-  ACTIVE
+  PENDING
+  CONFIRMED
+  ACTIVE      // ride in progress
   COMPLETED
   CANCELLED
+  NO_SHOW
+}
+
+// ─────────────────────────────────────────────
+// PAYMENTS
+// ─────────────────────────────────────────────
+
+model Payment {
+  id                   String        @id @default(uuid())
+  reservationId        String        @unique
+  reservation          Reservation   @relation(fields: [reservationId], references: [id])
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id])
+  amount               Float
+  currency             String        @default("USD")
+  status               PaymentStatus @default(PENDING)
+  stripePaymentIntentId String?      // Ready for Stripe integration
+  paidAt               DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// ─────────────────────────────────────────────
+// ROUTES & POI
+// ─────────────────────────────────────────────
+
+model Route {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  difficulty  RouteDifficulty @default(EASY)
+  distanceKm  Float
+  durationMin Int        // estimated minutes
+  polyline    Json?      // array of {lat, lng} points — ready for Google Maps
+  pois        POI[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+enum RouteDifficulty {
+  EASY
+  MODERATE
+  HARD
+}
+
+model POI {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  latitude    Float
+  longitude   Float
+  routeId     String
+  route       Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
 }

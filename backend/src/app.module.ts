@@ -8,9 +8,12 @@ import { AuthModule } from './auth/auth.module';
 import { StationsModule } from './stations/stations.module';
 import { BikesModule } from './bikes/bikes.module';
 import { ReservationsModule } from './reservations/reservations.module';
+import { TrackingModule } from './tracking/tracking.module';
+import { PaymentsModule } from './payments/payments.module';
+import { RoutesModule } from './routes/routes.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, UsersModule, AuthModule, StationsModule, BikesModule, ReservationsModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, UsersModule, AuthModule, StationsModule, BikesModule, ReservationsModule, TrackingModule, PaymentsModule, RoutesModule],
   controllers: [AppController],
   providers: [AppService],
 })

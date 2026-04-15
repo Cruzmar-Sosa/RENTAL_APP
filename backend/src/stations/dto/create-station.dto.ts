@@ -3,4 +3,5 @@ export class CreateStationDto {
   latitude: number;
   longitude: number;
   address?: string;
+  capacity: number;
 }

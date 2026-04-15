@@ -13,7 +13,8 @@ import {
   ChevronRight,
   LogOut,
   Map,
-  MapPin
+  MapPin,
+  CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -24,6 +25,8 @@ import { SidebarSkeleton } from './sidebar-skeleton';
 const sidebarItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Reservations', href: '/reservations', icon: CalendarRange }, // Users see their own, Admin sees all
+  { name: 'Tracking', href: '/tracking', icon: Map },
+  { name: 'Payments', href: '/payments', icon: CreditCard }, // Will change icon to a real one or handle it later
   { name: 'Routes', href: '/routes', icon: Map }, // Future feature
   { name: 'Stations', href: '/stations', icon: MapPin },
   { name: 'Bikes', href: '/bikes', icon: Bike },
@@ -47,6 +50,8 @@ export function Sidebar() {
       switch (item.name) {
         case 'Dashboard': return true;
         case 'Routes': return true;
+        case 'Tracking': return canView('TRACKING');
+        case 'Payments': return canView('PAYMENTS');
         case 'Reservations': return canView('RESERVATIONS');
         case 'Stations': return canView('STATIONS');
         case 'Bikes': return canView('BIKES');

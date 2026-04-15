@@ -27,7 +27,7 @@ export default function StationsManagementPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStation, setEditingStation] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', address: '', latitude: '', longitude: '' });
+  const [formData, setFormData] = useState({ name: '', address: '', latitude: '', longitude: '', capacity: 10 });
 
   const { data: stations, isLoading } = useQuery({
     queryKey: ['admin-stations'],
@@ -73,7 +73,7 @@ export default function StationsManagementPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingStation(null);
-    setFormData({ name: '', address: '', latitude: '', longitude: '' });
+    setFormData({ name: '', address: '', latitude: '', longitude: '', capacity: 10 });
   };
 
   const openEdit = (station: any) => {
@@ -82,7 +82,8 @@ export default function StationsManagementPage() {
       name: station.name, 
       address: station.address || '', 
       latitude: station.latitude.toString(), 
-      longitude: station.longitude.toString() 
+      longitude: station.longitude.toString(),
+      capacity: station.capacity || 10
     });
     setIsModalOpen(true);
   };
@@ -133,7 +134,7 @@ export default function StationsManagementPage() {
             <tr>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Station Code</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Details</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Assigned Fleet</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Occupation</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
             </tr>
           </thead>
@@ -162,10 +163,21 @@ export default function StationsManagementPage() {
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <div className="flex items-center gap-2">
-                       <span className="bg-blue-50 text-blue-700 text-xs font-black px-2.5 py-1 rounded-full border border-blue-100 flex items-center gap-1.5">
-                         <BikeIcon size={12} /> {station.bikes?.length || 0}
+                    <div className="flex flex-col items-center gap-2">
+                       <span className={cn(
+                         "text-xs font-black px-2.5 py-1 rounded-full border flex items-center gap-1.5",
+                         (station.bikes?.length || 0) >= (station.capacity || 10) 
+                           ? "bg-red-50 text-red-700 border-red-100" 
+                           : "bg-blue-50 text-blue-700 border-blue-100"
+                       )}>
+                         <BikeIcon size={12} /> {station.bikes?.length || 0} / {station.capacity || 10}
                        </span>
+                       <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 transition-all duration-300"
+                            style={{ width: `${Math.min(((station.bikes?.length || 0) / (station.capacity || 10)) * 100, 100)}%` }}
+                          />
+                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right flex items-center justify-end gap-2">
@@ -241,6 +253,17 @@ export default function StationsManagementPage() {
                 required
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-gray-400">Station Capacity</label>
+            <input 
+              type="number" min="1"
+              className="w-full bg-gray-50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-black/5 font-medium" 
+              placeholder="e.g. 10"
+              value={formData.capacity}
+              onChange={e => setFormData({...formData, capacity: parseInt(e.target.value)})}
+              required
+            />
           </div>
           <button 
             type="submit"

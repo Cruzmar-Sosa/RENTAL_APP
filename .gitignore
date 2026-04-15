@@ -25,3 +25,6 @@ frontend/node_modules/
 
 #docs
 docs/architecture.md
+
+#agent
+.agent/skills/*

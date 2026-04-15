@@ -26,9 +26,21 @@ export class ReservationsController {
     return this.reservationsService.findAll();
   }
 
+  @Patch(':id/start')
+  @Permissions('RESERVATIONS', 'UPDATE')
+  start(@Param('id') id: string) {
+    return this.reservationsService.start(id);
+  }
+
   @Patch(':id/complete')
   @Permissions('RESERVATIONS', 'UPDATE')
   complete(@Param('id') id: string) {
     return this.reservationsService.complete(id);
+  }
+
+  @Patch(':id/cancel')
+  @Permissions('RESERVATIONS', 'UPDATE')
+  cancel(@Param('id') id: string) {
+    return this.reservationsService.cancel(id);
   }
 }

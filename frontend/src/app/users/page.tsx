@@ -27,7 +27,7 @@ export default function UsersManagementPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'USER' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', role: 'USER' });
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -71,12 +71,12 @@ export default function UsersManagementPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingUser(null);
-    setFormData({ name: '', email: '', password: '', role: 'USER' });
+    setFormData({ name: '', email: '', password: '', phone: '', role: 'USER' });
   };
 
   const openEdit = (user: any) => {
     setEditingUser(user);
-    setFormData({ name: user.name || '', email: user.email, password: '', role: user.role });
+    setFormData({ name: user.name || '', email: user.email, password: '', phone: user.phone || '', role: user.role });
     setIsModalOpen(true);
   };
 
@@ -165,6 +165,7 @@ export default function UsersManagementPage() {
               <div className="mt-4">
                 <h3 className="font-bold text-lg leading-tight truncate">{user.name || 'No Name'}</h3>
                 <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                {user.phone && <p className="text-xs text-gray-400 mt-0.5 truncate">📞 {user.phone}</p>}
               </div>
 
               <div className="mt-6 flex items-center justify-between pt-4 border-t border-gray-50">
@@ -228,6 +229,16 @@ export default function UsersManagementPage() {
               value={formData.password}
               onChange={e => setFormData({...formData, password: e.target.value})}
               required={!editingUser}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-gray-400">Phone (Optional)</label>
+            <input 
+              type="tel"
+              placeholder="+52 477 000 0000"
+              className="w-full bg-gray-50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-black/5" 
+              value={formData.phone}
+              onChange={e => setFormData({...formData, phone: e.target.value})}
             />
           </div>
           <div className="space-y-2">

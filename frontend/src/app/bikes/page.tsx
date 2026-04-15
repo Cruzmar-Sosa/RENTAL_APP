@@ -54,7 +54,7 @@ export default function BikesManagementPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'AVAILABLE': return 'bg-green-100 text-green-700 border-green-200';
-      case 'RESERVED': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'IN_USE': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
       case 'MAINTENANCE': return 'bg-amber-100 text-amber-700 border-amber-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
@@ -63,7 +63,7 @@ export default function BikesManagementPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'AVAILABLE': return <CheckCircle2 size={14} />;
-      case 'RESERVED': return <AlertCircle size={14} />;
+      case 'IN_USE': return <AlertCircle size={14} />;
       case 'MAINTENANCE': return <Wrench size={14} />;
       default: return null;
     }
@@ -72,7 +72,7 @@ export default function BikesManagementPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBike, setEditingBike] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ id: '', status: 'AVAILABLE', stationId: '' });
+  const [formData, setFormData] = useState({ id: '', status: 'AVAILABLE', stationId: '', model: 'eTours Pro', batteryLevel: 100 });
 
   const { data: stations } = useQuery({
     queryKey: ['admin-stations-small'],
@@ -100,12 +100,18 @@ export default function BikesManagementPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingBike(null);
-    setFormData({ id: '', status: 'AVAILABLE', stationId: '' });
+    setFormData({ id: '', status: 'AVAILABLE', stationId: '', model: 'eTours Pro', batteryLevel: 100 });
   };
 
   const openEdit = (bike: any) => {
     setEditingBike(bike);
-    setFormData({ id: bike.id, status: bike.status, stationId: bike.stationId || '' });
+    setFormData({ 
+      id: bike.id, 
+      status: bike.status, 
+      stationId: bike.stationId || '',
+      model: bike.model || 'eTours Pro',
+      batteryLevel: bike.batteryLevel || 100
+    });
     setIsModalOpen(true);
   };
 
@@ -115,7 +121,7 @@ export default function BikesManagementPage() {
     bike.station?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!isLoaded) return <LoadingScreen message="Loading Fleet..." />;
+  if (!isLoaded) return <LoadingScreen message={`Loading Fleet ...`} />;
   if (!canRead('BIKES')) return <AccessDenied />;
 
   return (
@@ -158,8 +164,8 @@ export default function BikesManagementPage() {
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Bike ID</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Bike ID / Model</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status / Battery</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Current Station</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Sync</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
@@ -180,17 +186,34 @@ export default function BikesManagementPage() {
                       <div className="p-2 bg-gray-100 rounded-lg text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">
                         <BikeIcon size={18} />
                       </div>
-                      <span className="font-mono text-sm font-bold text-gray-700">#{bike.code || bike.id.slice(0, 13)}</span>
+                      <div>
+                        <span className="font-mono text-sm font-bold text-gray-700 block">#{bike.code || bike.id.slice(0, 8)}</span>
+                        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">{bike.model || 'eTours Pro'}</span>
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <span className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-tight border",
-                      getStatusColor(bike.status)
-                    )}>
-                      {getStatusIcon(bike.status)}
-                      {bike.status}
-                    </span>
+                    <div className="flex flex-col gap-1.5">
+                      <span className={cn(
+                        "inline-flex w-fit items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-tight border",
+                        getStatusColor(bike.status)
+                      )}>
+                        {getStatusIcon(bike.status)}
+                        {bike.status}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex-1 h-1 w-16 bg-gray-100 rounded-full overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full transition-all duration-500",
+                              bike.batteryLevel > 50 ? "bg-green-500" : bike.batteryLevel > 20 ? "bg-amber-500" : "bg-red-500"
+                            )}
+                            style={{ width: `${bike.batteryLevel}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-400">{bike.batteryLevel}%</span>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
@@ -267,8 +290,28 @@ export default function BikesManagementPage() {
             >
               <option value="AVAILABLE">AVAILABLE</option>
               <option value="MAINTENANCE">MAINTENANCE</option>
-              <option value="RESERVED">RESERVED</option>
+              <option value="IN_USE">IN_USE</option>
             </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-gray-400">Model</label>
+              <input 
+                className="w-full bg-gray-50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-black/5" 
+                value={formData.model}
+                onChange={e => setFormData({...formData, model: e.target.value})}
+                placeholder="eTours Pro"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-gray-400">Battery (%)</label>
+              <input 
+                type="number" min="0" max="100"
+                className="w-full bg-gray-50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-black/5" 
+                value={formData.batteryLevel}
+                onChange={e => setFormData({...formData, batteryLevel: parseInt(e.target.value)})}
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-gray-400">Assigned Station</label>
