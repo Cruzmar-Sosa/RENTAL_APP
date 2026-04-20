@@ -1,30 +1,57 @@
-# Node / NestJS
+# ─────────────────────────────
+# BACKEND / NODE / NEST
+# ─────────────────────────────
 node_modules/
 dist/
+coverage/
+
+# ENV (nunca subir secretos)
 .env
+.env.local
+.env.*.local
 
-# Prisma
-prisma/migrations/
-prisma/dev.db
-
-# Archivos sensibles
-*.xlsx
+# Logs
 *.log
+logs/
 
-# IDEs
+# ─────────────────────────────
+# PRISMA
+# ─────────────────────────────
+# ❌ NO ignorar migrations
+# prisma/migrations/  ← quitar esto
+
+prisma/dev.db
+prisma/dev.db-journal
+
+# ─────────────────────────────
+# FRONTEND
+# ─────────────────────────────
+frontend/node_modules/
+frontend/.next/
+frontend/dist/
+frontend/out/
+
+# ─────────────────────────────
+# FILES / EXPORTS
+# ─────────────────────────────
+*.xlsx
+*.csv
+*.tmp
+
+# ─────────────────────────────
+# IDE
+# ─────────────────────────────
 .vscode/
 .idea/
 
-# Sistema operativo
+# ─────────────────────────────
+# OS
+# ─────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Frontend compilado
-frontend/dist/
-frontend/node_modules/
-
-#docs
-docs/architecture.md
-
-#agent
-.agent/skills/*
+# ─────────────────────────────
+# AGENT (opcional)
+# ─────────────────────────────
+# Si quieres compartir skills → comenta esta línea
+# .agent/skills/*

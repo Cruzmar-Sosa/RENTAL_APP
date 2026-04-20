@@ -145,6 +145,12 @@ async function main() {
         difficulty: 'EASY',
         distanceKm: 6.5,
         durationMin: 45,
+        polyline: JSON.stringify([
+          { lat: 21.1239, lng: -101.6832 },
+          { lat: 21.1210, lng: -101.6811 },
+          { lat: 21.1182, lng: -101.6793 },
+          { lat: 21.1178, lng: -101.6790 }
+        ]),
         pois: {
           create: [
             { name: 'Catedral de León', description: 'Punto de partida', latitude: 21.1239, longitude: -101.6832 },
@@ -157,11 +163,16 @@ async function main() {
 
     await prisma.route.create({
       data: {
-        name: 'Parque Ecológico',
+        name: 'Parque Ecológico Metropolitano',
         description: 'Ruta natural entre áreas verdes con miradores y senderos.',
         difficulty: 'MODERATE',
         distanceKm: 12.2,
         durationMin: 75,
+        polyline: JSON.stringify([
+          { lat: 21.1712, lng: -101.6853 },
+          { lat: 21.1725, lng: -101.6865 },
+          { lat: 21.1740, lng: -101.6850 },
+        ]),
       }
     });
   } else {
