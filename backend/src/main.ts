@@ -7,10 +7,12 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // app.enableCors({
-  //   origin: true, // permite todos (para desarrollo)
-  //   credentials: true,
-  // });
+  app.enableCors({
+    origin: [
+      'https://rental-app-xi-six.vercel.app',
+    ],
+    credentials: true,
+  });
 
   await app.listen(process.env.PORT ?? 3000);
 }
