@@ -6,6 +6,7 @@ import { io, Socket } from 'socket.io-client';
 import { MapPin, Navigation, Signal, SignalZero, StopCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { toast } from 'sonner';
 
 export default function MobileRideTracking() {
   const params = useParams();
@@ -54,11 +55,27 @@ export default function MobileRideTracking() {
       setNetworkState('offline');
     });
 
+    const handleTrackingError = (err: { message: string }) => {
+      console.error('❌ TRACKING ERROR:', err.message);
+      toast.error(err.message || 'Bicicleta en uso', { duration: 5000 });
+      // Force stop local tracking
+      setIsTracking(false);
+      setNetworkState('offline');
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+
+    s.on('tracking_error', handleTrackingError);
+
     return () => {
+      s.off('tracking_error', handleTrackingError);
       s.disconnect();
       socketRef.current = null;
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
     };
   }, []);
@@ -77,6 +94,7 @@ export default function MobileRideTracking() {
 
     setIsTracking(true);
     setError(null);
+    toast.success('🚴‍♂️ Enviando ubicación en tiempo real');
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
@@ -122,6 +140,12 @@ export default function MobileRideTracking() {
 
   const handleStopTracking = () => {
     setIsTracking(false);
+    toast.info('Tracking detenido');
+    
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('stop_tracking', { bikeId });
+    }
+
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
