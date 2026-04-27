@@ -24,17 +24,14 @@ export default function MobileRideTracking() {
   const watchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
     setNetworkState('connecting');
     console.log('📡 SOCKET ATTEMPTING HANDSHAKE:', `${wsUrl}/tracking`);
 
     const s = io(`${wsUrl}/tracking`, {
-      path: '/socket.io',
-      // FUNDAMENTAL: Bypasses the HTML warning page from ngrok free tier on the iPhone
-      extraHeaders: {
-        'ngrok-skip-browser-warning': 'true',
-      },
-    });
+    path: '/socket.io',
+    transports: ['websocket'], // opcional pero recomendado en prod
+  });
     
     socketRef.current = s;
 

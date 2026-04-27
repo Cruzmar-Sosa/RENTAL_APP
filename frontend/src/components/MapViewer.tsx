@@ -60,15 +60,12 @@ export default function MapViewer({ initialBikes, onSocketStatusChange, selected
 
   useEffect(() => {
     // Definimos URL base vacia si no existe, o tomamos de entorno
-    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
 
     const s = io(`${wsUrl}/tracking`, {
-      path: '/socket.io',
-      // FUNDAMENTAL: Bypasses the HTML warning page from ngrok free tier
-      extraHeaders: {
-        'ngrok-skip-browser-warning': 'true',
-      },
-    });
+    path: '/socket.io',
+    transports: ['websocket'], // opcional pero recomendado en prod
+  });
 
     console.log("📡 MAPVIEWER INICIANDO CONEXIÓN A:", `${wsUrl}/tracking`);
     setSocket(s);
