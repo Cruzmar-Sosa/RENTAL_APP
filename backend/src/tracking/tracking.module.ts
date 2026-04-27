@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TrackingController } from './tracking.controller';
 import { TrackingService } from './tracking.service';
 import { TrackingGateway } from './tracking.gateway';
-import { PrismaModule } from '../core/database/prisma.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../core/database/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 
 @Injectable()
@@ -20,6 +20,14 @@ export class TrackingService {
         speed: data.speed || 0,
       },
     });
+  }
+
+  async checkBikeExists(bikeId: string): Promise<boolean> {
+    const bike = await this.prisma.bike.findUnique({
+      where: { id: bikeId },
+      select: { id: true }
+    });
+    return !!bike;
   }
 
   async getLatestByBike(bikeId: string) {
