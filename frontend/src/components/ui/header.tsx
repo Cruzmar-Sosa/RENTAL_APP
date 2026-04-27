@@ -17,7 +17,7 @@ export function Header({ title = 'eTours León' }: { title?: string }) {
     <header className="h-20 bg-white border-b flex items-center justify-between px-8 z-30 sticky top-0">
       <div className="flex items-center gap-4">
         <button 
-          onClick={() => goBackSafe('/dashboard')}
+          onClick={goBackSafe}
           className="p-2 border rounded-xl hover:bg-gray-50 transition-colors text-gray-500"
         >
           <ArrowLeft size={18} />
