@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 import { useSafeNavigation } from '@/hooks/useSafeNavigation';
 
-export function Header({ title = 'eTours León' }: { title?: string }) {
+export function Header({ title = 'eTours - León' }: { title?: string }) {
   const { user, logout } = useAuthStore();
   const { goBackSafe } = useSafeNavigation();
 
@@ -16,7 +16,7 @@ export function Header({ title = 'eTours León' }: { title?: string }) {
   return (
     <header className="h-20 bg-white border-b flex items-center justify-between px-8 z-30 sticky top-0">
       <div className="flex items-center gap-4">
-        <button 
+        <button
           onClick={goBackSafe}
           className="p-2 border rounded-xl hover:bg-gray-50 transition-colors text-gray-500"
         >
