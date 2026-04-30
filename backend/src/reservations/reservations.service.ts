@@ -1,15 +1,17 @@
 import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+import { CreateReservationDto } from './dto/create-reservation.dto';
+
 @Injectable()
 export class ReservationsService {
   private readonly PRICE_PER_HOUR = 50; // USD per hour
 
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: string, bikeId: string) {
+  async create(userId: string, dto: CreateReservationDto) {
     try {
-      const bike = await this.prisma.bike.findUnique({ where: { id: bikeId } });
+      const bike = await this.prisma.bike.findUnique({ where: { id: dto.bikeId } });
       if (!bike || bike.status !== 'AVAILABLE') {
         throw new BadRequestException('Bike is not available or does not exist');
       }
@@ -17,15 +19,43 @@ export class ReservationsService {
         throw new BadRequestException('Bike battery too low to be reserved');
       }
 
-      const priceEstimated = this.PRICE_PER_HOUR;
+      // Update User Document Info if provided
+      if (dto.documentType && dto.documentNumber) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { documentType: dto.documentType, documentNumber: dto.documentNumber },
+        });
+      }
+
+      const priceEstimated = this.PRICE_PER_HOUR * Math.max(1, Math.ceil((new Date(dto.endTime || Date.now()).getTime() - new Date(dto.startTime || Date.now()).getTime()) / 3600000));
+      const defaultExpires = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
+      
+      const isPaid = dto.paymentOption === 'FULL';
+      const isDeposit = dto.paymentOption === 'DEPOSIT';
+      const reservationStatus = (isPaid || isDeposit) ? 'CONFIRMED' : 'PENDING';
 
       const [reservation] = await this.prisma.$transaction([
         this.prisma.reservation.create({
-          data: { userId, bikeId, status: 'CONFIRMED', priceEstimated },
+          data: { 
+            userId, 
+            bikeId: dto.bikeId, 
+            status: reservationStatus, 
+            priceEstimated,
+            startTime: dto.startTime ? new Date(dto.startTime) : new Date(),
+            endTime: dto.endTime ? new Date(dto.endTime) : undefined,
+            expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : defaultExpires,
+            payment: {
+               create: {
+                  amount: priceEstimated,
+                  userId: userId,
+                  status: isPaid ? 'PAID' : 'PENDING'
+               }
+            }
+          },
         }),
         this.prisma.bike.update({
-          where: { id: bikeId },
-          data: { status: 'IN_USE' },
+          where: { id: dto.bikeId },
+          data: { status: 'RESERVED' },
         }),
       ]);
 
@@ -41,7 +71,7 @@ export class ReservationsService {
     try {
       const reservation = await this.prisma.reservation.findUnique({ where: { id } });
       if (!reservation) throw new BadRequestException('Reservation not found');
-      if (reservation.status !== 'CONFIRMED') throw new BadRequestException(`Cannot start reservation with status ${reservation.status}`);
+      if (reservation.status !== 'CONFIRMED' && reservation.status !== 'PENDING') throw new BadRequestException(`Cannot start reservation with status ${reservation.status}`);
 
       const [updatedReservation] = await this.prisma.$transaction([
         this.prisma.reservation.update({
@@ -119,7 +149,10 @@ export class ReservationsService {
 
   async complete(id: string) {
     try {
-      const reservation = await this.prisma.reservation.findUnique({ where: { id } });
+      const reservation = await this.prisma.reservation.findUnique({ 
+        where: { id },
+        include: { payment: true }
+      });
       if (!reservation) throw new BadRequestException('Reservation not found');
       if (reservation.status !== 'ACTIVE') throw new BadRequestException('Only active reservations can be completed');
 
@@ -128,6 +161,23 @@ export class ReservationsService {
       const hours = Math.ceil((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60));
       const priceActual = Math.max(hours * this.PRICE_PER_HOUR, this.PRICE_PER_HOUR);
 
+      // Calculamos saldo. Asumimos que si estaba PAID, pagó el estimado completo.
+      const amountPaid = reservation.payment?.status === 'PAID' ? reservation.payment.amount : 0;
+      const balance = priceActual - amountPaid;
+
+      const paymentUpdateData = reservation.payment ? {
+         update: {
+            amount: balance > 0 ? balance : Math.abs(balance),
+            status: balance > 0 ? 'PENDING' : (balance < 0 ? 'REFUNDED' : 'PAID')
+         }
+      } : {
+         create: {
+            amount: priceActual,
+            userId: reservation.userId,
+            status: 'PENDING'
+         }
+      };
+
       const [updatedReservation] = await this.prisma.$transaction([
         this.prisma.reservation.update({
           where: { id },
@@ -135,13 +185,7 @@ export class ReservationsService {
             status: 'COMPLETED',
             actualEnd,
             priceActual,
-            payment: {
-              create: {
-                amount: priceActual,
-                userId: reservation.userId,
-                status: 'PENDING'
-              }
-            }
+            payment: paymentUpdateData as any
           },
           include: { payment: true }
         }),

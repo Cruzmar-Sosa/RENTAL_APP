@@ -17,6 +17,8 @@ model User {
   password     String
   name         String?
   phone        String?
+  documentType DocumentType?
+  documentNumber String?
   role         Role             @default(USER)
   reservations Reservation[]
   permissions  UserPermission[]
@@ -24,6 +26,12 @@ model User {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   deletedAt    DateTime?
+}
+
+enum DocumentType {
+  DNI
+  PASSPORT
+  OTHER
 }
 
 enum Role {
@@ -100,6 +108,7 @@ model Bike {
 
 enum BikeStatus {
   AVAILABLE
+  RESERVED
   IN_USE
   MAINTENANCE
 }
@@ -131,6 +140,7 @@ model Reservation {
   endTime        DateTime?                           // expected end (optional)
   actualStart    DateTime?                           // when ride actually started
   actualEnd      DateTime?                           // when ride actually ended
+  expiresAt      DateTime?                           // expiration for PENDING reservations
   priceEstimated Float?                              // calculated on create
   priceActual    Float?                              // calculated on complete
   payment        Payment?

@@ -12,7 +12,7 @@ export class ReservationsController {
 
   @Post()
   create(@Request() req: any, @Body() createReservationDto: CreateReservationDto) {
-    return this.reservationsService.create(req.user.sub, createReservationDto.bikeId);
+    return this.reservationsService.create(req.user.sub, createReservationDto);
   }
 
   @Get('my')

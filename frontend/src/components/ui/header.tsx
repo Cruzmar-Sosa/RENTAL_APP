@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 import { useSafeNavigation } from '@/hooks/useSafeNavigation';
 
-export function Header({ title = 'eTours - León' }: { title?: string }) {
+export function Header({ title = 'eTours León' }: { title?: string }) {
   const { user, logout } = useAuthStore();
   const { goBackSafe } = useSafeNavigation();
 
