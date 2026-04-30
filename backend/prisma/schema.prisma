@@ -143,7 +143,7 @@ model Reservation {
   expiresAt      DateTime?                           // expiration for PENDING reservations
   priceEstimated Float?                              // calculated on create
   priceActual    Float?                              // calculated on complete
-  payment        Payment?
+  payments       Payment[]
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 }
@@ -163,12 +163,13 @@ enum ReservationStatus {
 
 model Payment {
   id                   String        @id @default(uuid())
-  reservationId        String        @unique
+  reservationId        String        
   reservation          Reservation   @relation(fields: [reservationId], references: [id])
   userId               String
   user                 User          @relation(fields: [userId], references: [id])
   amount               Float
   currency             String        @default("USD")
+  type                 PaymentType   @default(UPFRONT)
   status               PaymentStatus @default(PENDING)
   stripePaymentIntentId String?      // Ready for Stripe integration
   paidAt               DateTime?
@@ -181,6 +182,12 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+}
+
+enum PaymentType {
+  UPFRONT
+  DEPOSIT
+  POST_RIDE
 }
 
 // ─────────────────────────────────────────────

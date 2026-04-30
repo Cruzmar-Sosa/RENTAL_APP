@@ -72,9 +72,9 @@ export default function DashboardPage() {
     setSettlementModalOpen(true);
   };
 
-  const executeSettlement = async (id: string, action: string) => {
+  const executeSettlement = async (id: string, action: string, data?: any) => {
     try {
-      await api.patch(`/reservations/${id}/${action}`);
+      await api.patch(`/reservations/${id}/${action}`, data);
       toast.success('Ride completed and settled!');
       refetch();
       refetchReservations();

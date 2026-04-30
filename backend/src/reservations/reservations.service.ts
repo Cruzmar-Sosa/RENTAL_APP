@@ -44,11 +44,12 @@ export class ReservationsService {
             startTime: dto.startTime ? new Date(dto.startTime) : new Date(),
             endTime: dto.endTime ? new Date(dto.endTime) : undefined,
             expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : defaultExpires,
-            payment: {
+            payments: {
                create: {
                   amount: priceEstimated,
                   userId: userId,
-                  status: isPaid ? 'PAID' : 'PENDING'
+                  type: isDeposit ? 'DEPOSIT' : 'UPFRONT',
+                  status: isPaid || isDeposit ? 'PAID' : 'PENDING'
                }
             }
           },
@@ -71,7 +72,8 @@ export class ReservationsService {
     try {
       const reservation = await this.prisma.reservation.findUnique({ where: { id } });
       if (!reservation) throw new BadRequestException('Reservation not found');
-      if (reservation.status !== 'CONFIRMED' && reservation.status !== 'PENDING') throw new BadRequestException(`Cannot start reservation with status ${reservation.status}`);
+      if (reservation.status === 'PENDING') throw new BadRequestException('Cannot start a pending reservation. Payment required.');
+      if (reservation.status !== 'CONFIRMED') throw new BadRequestException(`Cannot start reservation with status ${reservation.status}`);
 
       const [updatedReservation] = await this.prisma.$transaction([
         this.prisma.reservation.update({
@@ -135,9 +137,9 @@ export class ReservationsService {
     try {
       return this.prisma.reservation.findMany({
         include: {
-          user: { select: { id: true, email: true, name: true } },
+          user: { select: { id: true, email: true, name: true, documentNumber: true, documentType: true } },
           bike: true,
-          payment: true
+          payments: true
         },
         orderBy: { createdAt: 'desc' }
       });
@@ -147,36 +149,34 @@ export class ReservationsService {
     }
   }
 
-  async complete(id: string) {
+  async complete(id: string, settlementData?: { balance?: number, priceActual?: number, actualEnd?: string }) {
     try {
       const reservation = await this.prisma.reservation.findUnique({ 
         where: { id },
-        include: { payment: true }
+        include: { payments: true }
       });
       if (!reservation) throw new BadRequestException('Reservation not found');
       if (reservation.status !== 'ACTIVE') throw new BadRequestException('Only active reservations can be completed');
 
-      const actualEnd = new Date();
-      const actualStart = reservation.actualStart || reservation.startTime;
-      const hours = Math.ceil((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60));
-      const priceActual = Math.max(hours * this.PRICE_PER_HOUR, this.PRICE_PER_HOUR);
+      const actualEnd = settlementData?.actualEnd ? new Date(settlementData.actualEnd) : new Date();
+      let priceActual = settlementData?.priceActual;
 
-      // Calculamos saldo. Asumimos que si estaba PAID, pagó el estimado completo.
-      const amountPaid = reservation.payment?.status === 'PAID' ? reservation.payment.amount : 0;
-      const balance = priceActual - amountPaid;
+      if (priceActual === undefined) {
+         const actualStart = reservation.actualStart || reservation.startTime;
+         const hours = Math.ceil((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60));
+         priceActual = Math.max(hours * this.PRICE_PER_HOUR, this.PRICE_PER_HOUR);
+      }
 
-      const paymentUpdateData = reservation.payment ? {
-         update: {
-            amount: balance > 0 ? balance : Math.abs(balance),
-            status: balance > 0 ? 'PENDING' : (balance < 0 ? 'REFUNDED' : 'PAID')
-         }
-      } : {
+      const balance = settlementData?.balance !== undefined ? settlementData.balance : 0;
+      
+      const paymentsCreation = balance > 0 ? {
          create: {
-            amount: priceActual,
+            amount: balance,
             userId: reservation.userId,
-            status: 'PENDING'
+            status: 'PENDING',
+            type: 'POST_RIDE'
          }
-      };
+      } : undefined;
 
       const [updatedReservation] = await this.prisma.$transaction([
         this.prisma.reservation.update({
@@ -185,9 +185,9 @@ export class ReservationsService {
             status: 'COMPLETED',
             actualEnd,
             priceActual,
-            payment: paymentUpdateData as any
+            payments: paymentsCreation as any
           },
-          include: { payment: true }
+          include: { payments: true }
         }),
         this.prisma.bike.update({
           where: { id: reservation.bikeId },

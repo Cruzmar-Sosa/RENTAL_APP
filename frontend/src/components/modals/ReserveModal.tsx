@@ -21,11 +21,14 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
   // Form State
   const [docType, setDocType] = useState('DNI');
   const [docNumber, setDocNumber] = useState('');
-  const [duration, setDuration] = useState(2); // hours
+  const [days, setDays] = useState(0);
+  const [hours, setHours] = useState(2);
   const [paymentOption, setPaymentOption] = useState<'DEPOSIT' | 'FULL' | 'LATER'>('DEPOSIT');
 
   const PRICE_PER_HOUR = 50;
-  const totalCost = duration * PRICE_PER_HOUR;
+  const PRICE_PER_DAY = PRICE_PER_HOUR * 24;
+  const totalHours = (days * 24) + hours;
+  const totalCost = (days * PRICE_PER_DAY) + (hours * PRICE_PER_HOUR);
   const depositCost = totalCost * 0.2; // 20% deposit
 
   const handleNext = () => setStep(step + 1);
@@ -36,7 +39,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
     try {
       // Calcular startTime (ahora) y endTime (ahora + duration)
       const startTime = new Date();
-      const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000);
+      const endTime = new Date(startTime.getTime() + totalHours * 60 * 60 * 1000);
       
       // El administrador o el sistema decide cuándo expira si no paga.
       // Por defecto: 2 horas desde ahora.
@@ -110,16 +113,29 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
               <div className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">
                 <Clock size={16} /> Step 2: Duration
               </div>
-              <div>
-                <label className="text-xs font-bold text-gray-600">Estimated Duration (Hours)</label>
-                <Input 
-                  type="number"
-                  min="1"
-                  max="24"
-                  value={duration}
-                  onChange={(e) => setDuration(Number(e.target.value))}
-                  className="mt-1 h-12 rounded-xl text-lg font-bold"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-600">Days</label>
+                  <Input 
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={days}
+                    onChange={(e) => setDays(Number(e.target.value))}
+                    className="mt-1 h-12 rounded-xl text-lg font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-600">Hours</label>
+                  <Input 
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={hours}
+                    onChange={(e) => setHours(Number(e.target.value))}
+                    className="mt-1 h-12 rounded-xl text-lg font-bold"
+                  />
+                </div>
               </div>
               <div className="flex gap-2 mt-4">
                 <Button variant="outline" onClick={handlePrev} className="h-12 rounded-xl w-1/3">Back</Button>
@@ -144,7 +160,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
                 </div>
                 <div className="flex justify-between text-sm font-medium text-gray-600">
                   <span>Duration:</span>
-                  <span>{duration} hours</span>
+                  <span>{days > 0 ? `${days} day(s) ` : ''}{hours} hour(s)</span>
                 </div>
                 <div className="border-t pt-2 flex justify-between font-black text-lg">
                   <span>Total Estimated:</span>

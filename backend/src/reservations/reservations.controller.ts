@@ -34,8 +34,8 @@ export class ReservationsController {
 
   @Patch(':id/complete')
   @Permissions('RESERVATIONS', 'UPDATE')
-  complete(@Param('id') id: string) {
-    return this.reservationsService.complete(id);
+  complete(@Param('id') id: string, @Body() body: any) {
+    return this.reservationsService.complete(id, body);
   }
 
   @Patch(':id/cancel')

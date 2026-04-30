@@ -20,14 +20,13 @@ export class PaymentsService {
     }
 
     // Usually payments are created when completing a reservation, but this allows creating manually if needed a retry.
-    return this.prisma.payment.upsert({
-      where: { reservationId: data.reservationId },
-      update: { amount: data.amount },
-      create: {
+    return this.prisma.payment.create({
+      data: {
         reservationId: data.reservationId,
         userId: userId,
         amount: data.amount,
-        status: 'PENDING'
+        status: 'PENDING',
+        type: 'POST_RIDE'
       }
     });
   }

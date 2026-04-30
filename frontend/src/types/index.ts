@@ -6,6 +6,8 @@ export interface User {
   email: string;
   name: string;
   phone?: string;
+  documentType?: string;
+  documentNumber?: string;
   role: UserRole;
 }
 
@@ -42,9 +44,9 @@ export interface Reservation {
   actualEnd?: string;
   priceEstimated?: number;
   priceActual?: number;
-  user?: Pick<User, 'id' | 'email' | 'name'>;
+  user?: Pick<User, 'id' | 'email' | 'name' | 'documentType' | 'documentNumber'>;
   bike?: Bike;
-  payment?: Payment;
+  payments?: Payment[];
 }
 
 export interface Payment {
@@ -54,6 +56,7 @@ export interface Payment {
   amount: number;
   currency: string;
   status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  type: 'UPFRONT' | 'DEPOSIT' | 'POST_RIDE';
   stripePaymentIntentId?: string;
   paidAt?: string;
   createdAt: string;
