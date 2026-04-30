@@ -32,26 +32,42 @@ export class PaymentsService {
   }
 
   async pay(paymentId: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+    const payment = await this.prisma.payment.findUnique({ 
+      where: { id: paymentId },
+      include: { reservation: true }
+    });
     if (!payment) throw new NotFoundException('Payment not found');
     if (payment.status === 'PAID') throw new BadRequestException('Payment already completed');
 
     // MOCK STRIPE FLOW: Just mark as PAID directly
-    return this.prisma.payment.update({
-      where: { id: paymentId },
-      data: {
-        status: 'PAID',
-        paidAt: new Date(),
-        stripePaymentIntentId: `mock_pi_${Date.now()}`
-      }
-    });
+    const [updatedPayment] = await this.prisma.$transaction([
+      this.prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          stripePaymentIntentId: `mock_pi_${Date.now()}`
+        }
+      }),
+      // If payment is for a PENDING reservation, confirm it
+      ...(payment.reservation.status === 'PENDING' && (payment.type === 'UPFRONT' || payment.type === 'DEPOSIT') ? [
+        this.prisma.reservation.update({
+          where: { id: payment.reservationId },
+          data: { status: 'CONFIRMED' }
+        })
+      ] : [])
+    ]);
+
+    return updatedPayment;
   }
 
   async findAll() {
     return this.prisma.payment.findMany({
       include: {
-        user: { select: { id: true, email: true, name: true } },
-        reservation: { select: { id: true, status: true, priceActual: true } }
+        user: { select: { id: true, email: true, name: true, documentType: true, documentNumber: true } },
+        reservation: { 
+          include: { bike: true } 
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -61,7 +77,10 @@ export class PaymentsService {
     return this.prisma.payment.findMany({
       where: { userId },
       include: {
-        reservation: { select: { id: true, status: true, priceActual: true } }
+        user: { select: { id: true, email: true, name: true, documentType: true, documentNumber: true } },
+        reservation: { 
+          include: { bike: true } 
+        }
       },
       orderBy: { createdAt: 'desc' }
     });

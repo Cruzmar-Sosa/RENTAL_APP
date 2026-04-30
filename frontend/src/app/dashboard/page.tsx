@@ -144,7 +144,8 @@ export default function DashboardPage() {
               <table className="w-full text-left text-sm text-gray-500">
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3">Reservation ID</th>
+                    <th className="px-6 py-3">Reservation</th>
+                    <th className="px-6 py-3">Bike</th>
                     <th className="px-6 py-3">User</th>
                     <th className="px-6 py-3">Status</th>
                     <th className="px-6 py-3">Actions</th>
@@ -153,8 +154,18 @@ export default function DashboardPage() {
                 <tbody>
                   {adminReservations?.filter((r: any) => ['PENDING', 'CONFIRMED', 'ACTIVE'].includes(r.status)).map((res: any) => (
                     <tr key={res.id} className="bg-white border-b">
-                      <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{res.id.slice(-8)}</td>
-                      <td className="px-6 py-4">{res.user?.name || res.user?.email}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                        RES-#{res.id.slice(-6).toUpperCase()}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-black">
+                        #{res.bike?.code || res.bikeId?.slice(-4)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-gray-900">{res.user?.name || 'No Name'}</span>
+                          <span className="text-xs text-gray-500">{res.user?.email}</span>
+                        </div>
+                      </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                           res.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :

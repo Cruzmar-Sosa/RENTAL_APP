@@ -8,10 +8,14 @@ import { cn } from '@/lib/utils';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { AccessDenied } from '@/components/ui/access-denied';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import { PaymentModal } from '@/components/modals/PaymentModal';
 
 export default function PaymentsPage() {
   const { canRead, canView, isLoaded, canUpdate } = usePermissions();
   const queryClient = useQueryClient();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['payments', canRead('PAYMENTS')],
@@ -98,12 +102,14 @@ export default function PaymentsPage() {
                
                {payment.status === 'PENDING' && canUpdate('PAYMENTS') && (
                  <button 
-                   onClick={() => payMutation.mutate(payment.id)}
-                   disabled={payMutation.isPending}
-                   className="bg-black text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 hover:scale-[1.05] active:scale-[0.95] transition shadow-lg shadow-black/20 disabled:opacity-50"
+                   onClick={() => {
+                     setSelectedPayment(payment);
+                     setModalOpen(true);
+                   }}
+                   className="bg-black text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 hover:scale-[1.05] active:scale-[0.95] transition shadow-lg shadow-black/20"
                  >
                    <CreditCard size={18} />
-                   {payMutation.isPending ? 'Processing...' : 'Pay Now'}
+                   Pay Now
                  </button>
                )}
 
@@ -128,6 +134,13 @@ export default function PaymentsPage() {
            </div>
         )}
       </div>
+
+      <PaymentModal 
+        isOpen={modalOpen} 
+        onClose={() => setModalOpen(false)} 
+        payment={selectedPayment} 
+        onConfirm={async (id) => { await payMutation.mutateAsync(id); }} 
+      />
     </div>
   );
 }
