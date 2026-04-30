@@ -26,7 +26,7 @@ export interface Bike {
   code: number;
   model?: string;
   batteryLevel?: number;
-  status: 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE';
+  status: 'AVAILABLE' | 'RESERVED' | 'IN_USE' | 'MAINTENANCE';
   stationId: string;
   station?: Station;
 }
