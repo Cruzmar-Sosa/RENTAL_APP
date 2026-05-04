@@ -5,9 +5,7 @@ import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { 
   MapPin, 
-  Map,
   Plus, 
-  Search, 
   Edit3, 
   Trash2,
   Bike as BikeIcon
@@ -19,11 +17,12 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { AccessDenied } from '@/components/ui/access-denied';
+import { DataTablePro, DataTableColumn } from '@/components/ui/data-table-pro';
+import { useDataTable } from '@/hooks/useDataTable';
 
 export default function StationsManagementPage() {
   const { canCreate, canUpdate, canDelete, canRead, isLoaded } = usePermissions();
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStation, setEditingStation] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
@@ -40,7 +39,6 @@ export default function StationsManagementPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Convert lat/long to numbers
       const payload = { ...data, latitude: parseFloat(data.latitude), longitude: parseFloat(data.longitude) };
       if (editingStation) return api.patch(`/stations/${editingStation.id}`, payload);
       return api.post('/stations', payload);
@@ -88,122 +86,138 @@ export default function StationsManagementPage() {
     setIsModalOpen(true);
   };
 
-  const filteredStations = stations?.filter((s: any) => 
-    String(s.code).includes(searchTerm) ||
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.address?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ─── DataTablePro Integration ───
+
+  const table = useDataTable({
+    data: stations || [],
+    searchableKeys: ['code', 'name', 'address'],
+    defaultPageSize: 10,
+    storageKey: 'stations',
+  });
+
+  const columns: DataTableColumn<any>[] = [
+    {
+      header: 'Station Code',
+      accessorKey: 'code',
+      cell: (station) => (
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gray-100 rounded-lg text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">
+            <MapPin size={18} />
+          </div>
+          <span className="font-mono text-sm font-bold text-gray-700">Hub #{station.code as number}</span>
+        </div>
+      ),
+    },
+    {
+      header: 'Details',
+      accessorKey: 'name',
+      cell: (station) => (
+        <div>
+          <h3 className="font-bold text-gray-900">{station.name as string}</h3>
+          <p className="text-xs text-gray-400 mt-1 line-clamp-1">{(station.address as string) || 'No address provided'}</p>
+        </div>
+      ),
+    },
+    {
+      header: 'Occupation',
+      accessorKey: 'capacity',
+      align: 'center',
+      cell: (station) => {
+        const bikeCount = (station.bikes as any[])?.length || 0;
+        const capacity = (station.capacity as number) || 10;
+        return (
+          <div className="flex flex-col items-center gap-2">
+            <span className={cn(
+              "text-xs font-black px-2.5 py-1 rounded-full border flex items-center gap-1.5",
+              bikeCount >= capacity
+                ? "bg-red-50 text-red-700 border-red-100" 
+                : "bg-blue-50 text-blue-700 border-blue-100"
+            )}>
+              <BikeIcon size={12} /> {bikeCount} / {capacity}
+            </span>
+            <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 transition-all duration-300"
+                style={{ width: `${Math.min((bikeCount / capacity) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      header: 'Actions',
+      accessorKey: 'id',
+      align: 'right',
+      exportable: false,
+      cell: (station) => (
+        <div className="flex items-center justify-end gap-2">
+          {canUpdate('STATIONS') && (
+            <button 
+              onClick={() => openEdit(station)}
+              className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-black transition"
+            >
+              <Edit3 size={16} />
+            </button>
+          )}
+          {canDelete('STATIONS') && (
+            <button 
+              onClick={() => setConfirmDelete(station)}
+              className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   if (!isLoaded) return <LoadingScreen message="Loading Stations..." />;
   if (!canRead('STATIONS')) return <AccessDenied />;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-black">Stations Management</h1>
-          <p className="text-gray-500 mt-1">Configure global deployment zones and bike docks.</p>
-        </div>
-        {canCreate('STATIONS') && (
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-black text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-800 transition shadow-lg shadow-black/5"
-          >
-            <Plus size={20} />
-            Add New Station
-          </button>
-        )}
-      </div>
-
-      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by code, name or address..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black/5 outline-none transition"
-          />
-        </div>
-      </div>
-
-      <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Station Code</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Details</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Occupation</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {isLoading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i} className="animate-pulse">
-                  <td colSpan={4} className="px-6 py-8"><div className="h-4 bg-gray-100 rounded w-full" /></td>
-                </tr>
-              ))
-            ) : (
-              filteredStations?.map((station: any) => (
-                <tr key={station.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gray-100 rounded-lg text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">
-                        <MapPin size={18} />
-                      </div>
-                      <span className="font-mono text-sm font-bold text-gray-700">Hub #{station.code}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div>
-                      <h3 className="font-bold text-gray-900">{station.name}</h3>
-                      <p className="text-xs text-gray-400 mt-1 line-clamp-1">{station.address || 'No address provided'}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col items-center gap-2">
-                       <span className={cn(
-                         "text-xs font-black px-2.5 py-1 rounded-full border flex items-center gap-1.5",
-                         (station.bikes?.length || 0) >= (station.capacity || 10) 
-                           ? "bg-red-50 text-red-700 border-red-100" 
-                           : "bg-blue-50 text-blue-700 border-blue-100"
-                       )}>
-                         <BikeIcon size={12} /> {station.bikes?.length || 0} / {station.capacity || 10}
-                       </span>
-                       <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 transition-all duration-300"
-                            style={{ width: `${Math.min(((station.bikes?.length || 0) / (station.capacity || 10)) * 100, 100)}%` }}
-                          />
-                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 text-right flex items-center justify-end gap-2">
-                    {canUpdate('STATIONS') && (
-                      <button 
-                        onClick={() => openEdit(station)}
-                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-black transition"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                    )}
-                    {canDelete('STATIONS') && (
-                      <button 
-                        onClick={() => setConfirmDelete(station)}
-                        className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+    <div className="p-8 max-w-7xl mx-auto">
+      <DataTablePro
+        title="Stations Management"
+        subtitle="Configure global deployment zones and bike docks."
+        data={stations || []}
+        columns={columns}
+        exportEnabled
+        exportTitle="Stations Management"
+        exportFileName="stations"
+        searchTerm={table.searchTerm}
+        onSearchChange={table.setSearchTerm}
+        searchPlaceholder="Search by code, name or address..."
+        activeFilters={table.activeFilters}
+        onFilterChange={table.setFilter}
+        currentPage={table.currentPage}
+        totalPages={table.totalPages}
+        pageSize={table.pageSize}
+        onPageChange={table.setCurrentPage}
+        onPageSizeChange={table.setPageSize}
+        startRecord={table.startRecord}
+        endRecord={table.endRecord}
+        filteredCount={table.filteredCount}
+        totalRecords={table.totalRecords}
+        paginatedData={table.paginatedData}
+        filteredData={table.filteredData}
+        isLoading={isLoading}
+        emptyIcon={<MapPin size={40} />}
+        emptyTitle="No stations found"
+        emptyMessage="Deploy your first station to get started."
+        headerActions={
+          canCreate('STATIONS') ? (
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="bg-black text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-800 transition shadow-lg shadow-black/5"
+            >
+              <Plus size={20} />
+              Add New Station
+            </button>
+          ) : undefined
+        }
+      />
 
       <Modal 
         isOpen={isModalOpen} 

@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { 
   Bike as BikeIcon, 
   Plus, 
-  Search, 
   Edit3, 
   Trash2, 
   MapPin,
@@ -21,11 +20,12 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { AccessDenied } from '@/components/ui/access-denied';
+import { DataTablePro, DataTableColumn, DataTableFilter } from '@/components/ui/data-table-pro';
+import { useDataTable } from '@/hooks/useDataTable';
 
 export default function BikesManagementPage() {
   const { canCreate, canUpdate, canDelete, canRead, isLoaded } = usePermissions();
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
 
   const { data: bikes, isLoading } = useQuery({
     queryKey: ['admin-bikes'],
@@ -115,153 +115,164 @@ export default function BikesManagementPage() {
     setIsModalOpen(true);
   };
 
-  const filteredBikes = bikes?.filter((bike: any) => 
-    String(bike.code).includes(searchTerm) ||
-    bike.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    bike.station?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ─── DataTablePro Integration ───
+
+  const table = useDataTable({
+    data: bikes || [],
+    searchableKeys: ['code', 'id', 'station.name', 'model'],
+    defaultPageSize: 10,
+    storageKey: 'bikes',
+  });
+
+  const columns: DataTableColumn<any>[] = [
+    {
+      header: 'Bike ID / Model',
+      accessorKey: 'code',
+      cell: (bike) => (
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gray-100 rounded-lg text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">
+            <BikeIcon size={18} />
+          </div>
+          <div>
+            <span className="font-mono text-sm font-bold text-gray-700 block">#{bike.code || (bike.id as string).slice(0, 8)}</span>
+            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">{(bike.model as string) || 'eTours Pro'}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Status / Battery',
+      accessorKey: 'status',
+      cell: (bike) => (
+        <div className="flex flex-col gap-1.5">
+          <span className={cn(
+            "inline-flex w-fit items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-tight border",
+            getStatusColor(bike.status as string)
+          )}>
+            {getStatusIcon(bike.status as string)}
+            {bike.status as string}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 h-1 w-16 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full transition-all duration-500",
+                  (bike.batteryLevel as number) > 50 ? "bg-green-500" : (bike.batteryLevel as number) > 20 ? "bg-amber-500" : "bg-red-500"
+                )}
+                style={{ width: `${bike.batteryLevel}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-bold text-gray-400">{bike.batteryLevel as number}%</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Current Station',
+      accessorKey: 'station.name',
+      cell: (bike) => (
+        <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
+          <MapPin size={14} className="text-gray-400" />
+          {(bike.station as any)?.name || 'In Transit / Maintenance'}
+        </div>
+      ),
+    },
+    {
+      header: 'Last Sync',
+      accessorKey: 'updatedAt',
+      cell: (bike) => (
+        <span className="text-xs text-gray-400 font-medium">
+          {new Date(bike.updatedAt as string).toLocaleDateString()}
+        </span>
+      ),
+    },
+    {
+      header: 'Actions',
+      accessorKey: 'id',
+      align: 'right',
+      exportable: false,
+      cell: (bike) => (
+        <div className="flex items-center justify-end gap-2">
+          {canUpdate('BIKES') && (
+            <button 
+              onClick={() => openEdit(bike)}
+              className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-black transition"
+            >
+              <Edit3 size={16} />
+            </button>
+          )}
+          {canDelete('BIKES') && (
+            <button 
+              onClick={() => setConfirmDelete(bike.id as string)}
+              className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const filters: DataTableFilter[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { label: 'Available', value: 'AVAILABLE' },
+        { label: 'In Use', value: 'IN_USE' },
+        { label: 'Maintenance', value: 'MAINTENANCE' },
+        { label: 'Reserved', value: 'RESERVED' },
+      ],
+    },
+  ];
 
   if (!isLoaded) return <LoadingScreen message={`Loading Fleet ...`} />;
   if (!canRead('BIKES')) return <AccessDenied />;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-black">Fleet Management</h1>
-          <p className="text-gray-500 mt-1">Manage bicycles, status, and station assignments.</p>
-        </div>
-        {canCreate('BIKES') && (
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-black text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-800 transition shadow-lg shadow-black/5"
-          >
-            <Plus size={20} />
-            Add New Bike
-          </button>
-        )}
-      </div>
-
-      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by ID or Station..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black/5 outline-none transition"
-          />
-        </div>
-        <div className="h-8 w-px bg-gray-100" />
-        <div className="flex items-center gap-2 px-2">
-          <span className="text-sm font-medium text-gray-500">Fleet Size:</span>
-          <span className="text-sm font-bold bg-black text-white px-2.5 py-1 rounded-lg">{bikes?.length || 0}</span>
-        </div>
-      </div>
-
-      <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Bike ID / Model</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status / Battery</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Current Station</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Sync</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="animate-pulse">
-                  <td colSpan={5} className="px-6 py-8"><div className="h-4 bg-gray-100 rounded w-full" /></td>
-                </tr>
-              ))
-            ) : (
-              filteredBikes?.map((bike: any) => (
-                <tr key={bike.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gray-100 rounded-lg text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">
-                        <BikeIcon size={18} />
-                      </div>
-                      <div>
-                        <span className="font-mono text-sm font-bold text-gray-700 block">#{bike.code || bike.id.slice(0, 8)}</span>
-                        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">{bike.model || 'eTours Pro'}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col gap-1.5">
-                      <span className={cn(
-                        "inline-flex w-fit items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-tight border",
-                        getStatusColor(bike.status)
-                      )}>
-                        {getStatusIcon(bike.status)}
-                        {bike.status}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex-1 h-1 w-16 bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className={cn(
-                              "h-full transition-all duration-500",
-                              bike.batteryLevel > 50 ? "bg-green-500" : bike.batteryLevel > 20 ? "bg-amber-500" : "bg-red-500"
-                            )}
-                            style={{ width: `${bike.batteryLevel}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400">{bike.batteryLevel}%</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
-                      <MapPin size={14} className="text-gray-400" />
-                      {bike.station?.name || 'In Transit / Maintenance'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className="text-xs text-gray-400 font-medium">
-                      {new Date(bike.updatedAt).toLocaleDateString()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-right flex items-center justify-end gap-2">
-                    {canUpdate('BIKES') && (
-                      <button 
-                        onClick={() => openEdit(bike)}
-                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-black transition"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                    )}
-                    {canDelete('BIKES') && (
-                      <button 
-                        onClick={() => setConfirmDelete(bike.id)}
-                        className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        
-        {!isLoading && filteredBikes?.length === 0 && (
-          <div className="p-20 text-center space-y-4">
-            <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
-              <BikeIcon className="text-gray-300" size={40} />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold">No bikes found</h3>
-              <p className="text-gray-500 max-w-xs mx-auto mt-2">No hardware matches your current filters.</p>
-            </div>
-          </div>
-        )}
-      </div>
+    <div className="p-8 max-w-7xl mx-auto">
+      <DataTablePro
+        title="Fleet Management"
+        subtitle="Manage bicycles, status, and station assignments."
+        data={bikes || []}
+        columns={columns}
+        filters={filters}
+        exportEnabled
+        exportTitle="Fleet Management — Bikes"
+        exportFileName="bikes_fleet"
+        searchTerm={table.searchTerm}
+        onSearchChange={table.setSearchTerm}
+        searchPlaceholder="Search by ID, model or station..."
+        activeFilters={table.activeFilters}
+        onFilterChange={table.setFilter}
+        currentPage={table.currentPage}
+        totalPages={table.totalPages}
+        pageSize={table.pageSize}
+        onPageChange={table.setCurrentPage}
+        onPageSizeChange={table.setPageSize}
+        startRecord={table.startRecord}
+        endRecord={table.endRecord}
+        filteredCount={table.filteredCount}
+        totalRecords={table.totalRecords}
+        paginatedData={table.paginatedData}
+        filteredData={table.filteredData}
+        isLoading={isLoading}
+        emptyIcon={<BikeIcon size={40} />}
+        emptyTitle="No bikes found"
+        emptyMessage="No hardware matches your current filters."
+        headerActions={
+          canCreate('BIKES') ? (
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="bg-black text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-800 transition shadow-lg shadow-black/5"
+            >
+              <Plus size={20} />
+              Add New Bike
+            </button>
+          ) : undefined
+        }
+      />
 
       <Modal 
         isOpen={isModalOpen} 
