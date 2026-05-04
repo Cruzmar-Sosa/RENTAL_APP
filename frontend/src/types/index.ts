@@ -42,11 +42,33 @@ export interface Reservation {
   endTime?: string;
   actualStart?: string;
   actualEnd?: string;
+  expiresAt?: string;
   priceEstimated?: number;
   priceActual?: number;
-  user?: Pick<User, 'id' | 'email' | 'name' | 'documentType' | 'documentNumber'>;
+  // Pricing
+  ratePerHour?: number;
+  // Client / Guest snapshot
+  clientName?: string;
+  clientPhone?: string;
+  guestName?: string;
+  guestDocument?: string;
+  guestPhone?: string;
+  // Extras
+  extras?: { name: string; price: number }[];
+  extrasTotal?: number;
+  // Check-in
+  bikeCondition?: string;
+  bikeNotes?: string;
+  termsAccepted?: boolean;
+  // Settlement
+  incidentType?: string;
+  incidentNotes?: string;
+  // Relations
+  user?: Pick<User, 'id' | 'email' | 'name' | 'phone' | 'documentType' | 'documentNumber'>;
   bike?: Bike;
   payments?: Payment[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Payment {
@@ -56,7 +78,7 @@ export interface Payment {
   amount: number;
   currency: string;
   status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
-  type: 'UPFRONT' | 'DEPOSIT' | 'POST_RIDE';
+  type: 'UPFRONT' | 'DEPOSIT' | 'POST_RIDE' | 'BALANCE' | 'REFUND';
   stripePaymentIntentId?: string;
   paidAt?: string;
   createdAt: string;

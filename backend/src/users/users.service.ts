@@ -67,6 +67,36 @@ export class UsersService {
     }
   }
 
+  async search(query: string) {
+    try {
+      if (!query || query.length < 2) return [];
+      return this.prisma.user.findMany({
+        where: {
+          deletedAt: null,
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
+            { phone: { contains: query, mode: 'insensitive' } },
+            { documentNumber: { contains: query, mode: 'insensitive' } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          documentType: true,
+          documentNumber: true,
+        },
+        take: 10,
+        orderBy: { name: 'asc' },
+      });
+    } catch (error) {
+      console.error('[UsersService.search]', error);
+      throw new InternalServerErrorException('Failed to search users');
+    }
+  }
+
   async findOne(id: string) {
     try {
       return this.prisma.user.findUnique({

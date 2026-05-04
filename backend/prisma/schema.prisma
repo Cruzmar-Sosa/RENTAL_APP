@@ -143,6 +143,30 @@ model Reservation {
   expiresAt      DateTime?                           // expiration for PENDING reservations
   priceEstimated Float?                              // calculated on create
   priceActual    Float?                              // calculated on complete
+
+  // ── Pricing ──
+  ratePerHour    Float?            @default(50)      // editable rate at creation
+
+  // ── Guest / Client snapshot (decoupled from auth user) ──
+  clientName     String?                              // may differ from user.name
+  clientPhone    String?                              // snapshot at reservation time
+  guestName      String?                              // for walk-in / non-registered clients
+  guestDocument  String?                              // guest document number
+  guestPhone     String?                              // guest phone
+
+  // ── Extras (snapshot — immutable after creation) ──
+  extras         Json?                                // [{name:"Helmet",price:10},...]
+  extrasTotal    Float?            @default(0)
+
+  // ── Check-in (set at Start Ride) ──
+  bikeCondition  String?                              // GOOD | REGULAR | DAMAGED
+  bikeNotes      String?                              // free-text notes
+  termsAccepted  Boolean?          @default(false)
+
+  // ── Settlement / Incidents ──
+  incidentType   String?                              // MECHANICAL | TECHNICAL | OTHER
+  incidentNotes  String?                              // free-text
+
   payments       Payment[]
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
@@ -188,6 +212,8 @@ enum PaymentType {
   UPFRONT
   DEPOSIT
   POST_RIDE
+  BALANCE    // post-ride debt when actual > estimated
+  REFUND     // refund issued due to incident
 }
 
 // ─────────────────────────────────────────────

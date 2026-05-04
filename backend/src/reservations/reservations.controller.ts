@@ -3,7 +3,7 @@ import { ReservationsService } from './reservations.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
-import { CreateReservationDto } from './dto/create-reservation.dto';
+import { CreateReservationDto, StartRideDto, CompleteRideDto } from './dto/create-reservation.dto';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('reservations')
@@ -11,8 +11,8 @@ export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
 
   @Post()
-  create(@Request() req: any, @Body() createReservationDto: CreateReservationDto) {
-    return this.reservationsService.create(req.user.sub, createReservationDto);
+  create(@Request() req: any, @Body() dto: CreateReservationDto) {
+    return this.reservationsService.create(req.user.sub, dto);
   }
 
   @Get('my')
@@ -26,16 +26,22 @@ export class ReservationsController {
     return this.reservationsService.findAll();
   }
 
+  @Get(':id')
+  @Permissions('RESERVATIONS', 'READ')
+  findOne(@Param('id') id: string) {
+    return this.reservationsService.findOne(id);
+  }
+
   @Patch(':id/start')
   @Permissions('RESERVATIONS', 'UPDATE')
-  start(@Param('id') id: string) {
-    return this.reservationsService.start(id);
+  start(@Param('id') id: string, @Body() dto: StartRideDto) {
+    return this.reservationsService.start(id, dto);
   }
 
   @Patch(':id/complete')
   @Permissions('RESERVATIONS', 'UPDATE')
-  complete(@Param('id') id: string, @Body() body: any) {
-    return this.reservationsService.complete(id, body);
+  complete(@Param('id') id: string, @Body() dto: CompleteRideDto) {
+    return this.reservationsService.complete(id, dto);
   }
 
   @Patch(':id/cancel')

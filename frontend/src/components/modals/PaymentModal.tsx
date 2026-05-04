@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CreditCard, CheckCircle2, User, Bike, FileText, AlertCircle } from 'lucide-react';
+import { CreditCard, CheckCircle2, User, Bike, FileText, AlertCircle, Receipt, DollarSign, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
+import { Payment } from '@/types';
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  payment: any;
+  payment: Payment | null;
   onConfirm: (id: string) => Promise<void>;
 }
 
@@ -28,83 +29,116 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
     }
   };
 
-  const isPostRide = payment.type === 'POST_RIDE';
-  const isDeposit = payment.type === 'DEPOSIT';
+  const getPaymentBadge = (type: string) => {
+    switch (type) {
+      case 'UPFRONT': return { bg: 'bg-blue-100 text-blue-700', label: 'Upfront Full' };
+      case 'DEPOSIT': return { bg: 'bg-purple-100 text-purple-700', label: 'Security Deposit' };
+      case 'POST_RIDE': return { bg: 'bg-orange-100 text-orange-700', label: 'Post-Ride Adjustment' };
+      case 'BALANCE': return { bg: 'bg-red-100 text-red-700', label: 'Pending Balance' };
+      case 'REFUND': return { bg: 'bg-emerald-100 text-emerald-700', label: 'Customer Refund' };
+      default: return { bg: 'bg-gray-100 text-gray-700', label: type };
+    }
+  };
+
+  const badge = getPaymentBadge(payment.type);
+  const isRefund = payment.type === 'REFUND';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-white rounded-3xl p-6 border-0 shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-black text-center flex items-center justify-center gap-2">
-            <CreditCard size={24} /> Payment Review
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-md bg-white rounded-[2rem] p-0 border-0 shadow-2xl overflow-hidden">
+        {/* Header Branding */}
+        <div className={`p-8 text-white ${isRefund ? 'bg-emerald-600' : 'bg-black'}`}>
+          <div className="flex justify-between items-start mb-4">
+            <div className="bg-white/20 p-3 rounded-2xl">
+              <CreditCard size={28} />
+            </div>
+            <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isRefund ? 'bg-emerald-500' : 'bg-gray-800'}`}>
+              Invoice #{payment.id.slice(0, 8)}
+            </div>
+          </div>
+          <h2 className="text-3xl font-black mb-1">Payment Review</h2>
+          <p className="text-white/60 text-sm font-medium">Verify transaction details before processing.</p>
+        </div>
 
-        <div className="mt-6 space-y-6">
-          <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
-            <div className="bg-white p-2 rounded-xl shadow-sm"><User size={18} className="text-gray-400"/></div>
-            <div>
-              <p className="text-xs font-bold text-gray-400">User & Document</p>
-              <p className="text-sm font-bold text-gray-800">{payment.user?.name || payment.user?.email}</p>
-              <p className="text-xs text-gray-500">{payment.user?.documentType || 'ID'}: {payment.user?.documentNumber || 'N/A'}</p>
+        <div className="p-8 space-y-6">
+          {/* User & Res Snapshot */}
+          <div className="grid grid-cols-1 gap-3">
+            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100"><User size={20} className="text-gray-400"/></div>
+              <div className="flex-1">
+                <p className="text-[10px] font-black text-gray-400 uppercase">Customer</p>
+                <p className="font-bold text-gray-900 truncate">{(payment as any).user?.name || (payment as any).user?.email || 'Guest'}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100"><Receipt size={20} className="text-gray-400"/></div>
+              <div className="flex-1">
+                <p className="text-[10px] font-black text-gray-400 uppercase">Reservation Reference</p>
+                <p className="font-bold text-gray-900">ID: {payment.reservationId.slice(0, 12)}...</p>
+              </div>
             </div>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
-            <div className="bg-white p-2 rounded-xl shadow-sm"><Bike size={18} className="text-gray-400"/></div>
-            <div className="flex-1">
-              <p className="text-xs font-bold text-gray-400">Reservation Info</p>
-              <p className="text-sm font-bold text-gray-800">
-                Res: #{payment.reservationId.slice(0,8)} 
-                {payment.reservation?.bike && ` • Bike #${payment.reservation.bike.code}`}
-              </p>
-              <p className="text-xs text-gray-500 capitalize">
-                Status: {payment.reservation?.status || 'Unknown'}
-              </p>
+          {/* Financial Card */}
+          <div className="bg-white border-2 border-gray-100 rounded-[2rem] overflow-hidden shadow-sm">
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Wallet size={16} className="text-gray-400" />
+                  <span className="text-xs font-black text-gray-500 uppercase tracking-wider">Transaction Type</span>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${badge.bg}`}>
+                  {badge.label}
+                </span>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between text-sm font-bold text-gray-400">
+                  <span>Gross Amount</span>
+                  <span>${payment.amount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold text-gray-400">
+                  <span>Fees / Tax</span>
+                  <span>$0.00</span>
+                </div>
+              </div>
+
+              <div className={`mt-4 pt-4 border-t-2 border-dashed border-gray-100 flex justify-between items-center ${isRefund ? 'text-emerald-600' : 'text-gray-900'}`}>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-gray-400">{isRefund ? 'Amount to Refund' : 'Amount to Charge'}</p>
+                  <p className="text-4xl font-black">${payment.amount.toFixed(2)}</p>
+                </div>
+                <DollarSign size={32} className="text-gray-100" />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3 bg-white border p-4 rounded-2xl shadow-sm">
-            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
-               <FileText size={16} className="text-gray-400" />
-               <span className="text-sm font-bold text-gray-600 uppercase tracking-widest">Invoice Details</span>
-            </div>
-            
-            <div className="flex justify-between text-sm font-medium text-gray-600">
-              <span>Payment Type:</span>
-              <span className="font-bold">{payment.type}</span>
-            </div>
-            <div className="flex justify-between text-sm font-medium text-gray-600">
-              <span>Currency:</span>
-              <span className="font-bold">{payment.currency}</span>
-            </div>
-            
-            <div className={`border-t pt-4 flex justify-between items-center text-gray-900`}>
-              <span className="font-bold uppercase text-sm">
-                Amount to Pay
-              </span>
-              <span className="text-3xl font-black">
-                ${payment.amount.toFixed(2)}
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 text-blue-800 p-3 rounded-xl text-xs font-medium border border-blue-100 flex items-start gap-2">
-            <AlertCircle size={16} className="mt-0.5 shrink-0 text-blue-500" />
-            <p>
-              {isPostRide 
-                ? 'This is a settlement payment for a ride that exceeded the estimated time.'
-                : isDeposit 
-                  ? 'This is a partial deposit. The remainder will be settled upon completion.'
-                  : 'This payment will confirm the reservation and allow the user to start the ride.'
+          {/* Alert / Info */}
+          <div className={`p-4 rounded-2xl border flex gap-3 ${isRefund ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-blue-50 border-blue-100 text-blue-800'}`}>
+            <AlertCircle size={20} className={`shrink-0 ${isRefund ? 'text-emerald-500' : 'text-blue-500'}`} />
+            <p className="text-xs font-medium leading-relaxed">
+              {payment.type === 'BALANCE' 
+                ? 'This payment covers the extra time used beyond the original estimation.'
+                : payment.type === 'DEPOSIT'
+                  ? 'Initial security deposit to confirm the reservation. Remaining balance will be calculated later.'
+                  : isRefund 
+                    ? 'Processing this will return the specified amount to the customers balance/card.'
+                    : 'Standard upfront payment to activate the bike reservation.'
               }
             </p>
           </div>
 
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={onClose} className="h-12 rounded-xl w-1/3">Cancel</Button>
-            <Button onClick={handlePay} disabled={loading} className="h-12 rounded-xl font-bold bg-black text-white hover:bg-gray-800 w-2/3 flex items-center justify-center gap-2">
-              <CheckCircle2 size={18} /> Process Payment
+          {/* Actions */}
+          <div className="flex gap-4 pt-2">
+            <Button variant="outline" onClick={onClose} className="h-14 rounded-2xl flex-1 border-2 font-bold">Cancel</Button>
+            <Button 
+              onClick={handlePay} 
+              disabled={loading}
+              className={`h-14 rounded-2xl flex-[2] font-black text-white hover:scale-[1.02] transition-all flex items-center justify-center gap-2 ${isRefund ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-black hover:bg-gray-800'}`}
+            >
+              {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <CheckCircle2 size={20} />}
+              {isRefund ? 'Process Refund' : 'Confirm Payment'}
             </Button>
           </div>
         </div>

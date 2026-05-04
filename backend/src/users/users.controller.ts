@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
@@ -19,6 +19,11 @@ export class UsersController {
   @Permissions('USERS', 'READ')
   findAll() {
     return this.usersService.findAll();
+  }
+
+  @Get('search')
+  search(@Query('q') query: string) {
+    return this.usersService.search(query || '');
   }
 
   @Get(':id')
