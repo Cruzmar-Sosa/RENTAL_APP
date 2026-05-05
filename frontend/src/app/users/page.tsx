@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Modal } from '@/components/ui/modal';
+import { BaseModal } from '@/components/ui/BaseModal';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LoadingScreen } from '@/components/ui/loading-screen';
@@ -224,11 +224,17 @@ export default function UsersManagementPage() {
         }
       />
 
-      <Modal 
+      <BaseModal 
         isOpen={isModalOpen} 
         onClose={closeModal} 
-        title={editingUser ? 'Edit User' : 'Add New User'}
+        showFooter={false}
       >
+        <div className="flex flex-col gap-6">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900">{editingUser ? 'Edit User' : 'Add New User'}</h2>
+            <p className="text-gray-500 text-sm font-medium">Manage profile and access levels.</p>
+          </div>
+
         <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(formData); }} className="space-y-4">
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-gray-400">Full Name</label>
@@ -288,7 +294,8 @@ export default function UsersManagementPage() {
             {saveMutation.isPending ? 'Saving...' : 'Save User'}
           </button>
         </form>
-      </Modal>
+        </div>
+      </BaseModal>
 
       <ConfirmModal
         isOpen={!!confirmDelete}

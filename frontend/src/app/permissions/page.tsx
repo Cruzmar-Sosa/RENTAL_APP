@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Settings, Edit2, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Modal } from '@/components/ui/modal';
+import { BaseModal } from '@/components/ui/BaseModal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { AccessDenied } from '@/components/ui/access-denied';
@@ -157,11 +157,17 @@ export default function SettingsManagementPage() {
         </table>
       </div>
 
-      <Modal 
+      <BaseModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        title="Manage User Access"
+        showFooter={false}
       >
+        <div className="flex flex-col gap-6">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900">Manage User Access</h2>
+            <p className="text-gray-500 text-sm font-medium">Configure granular permissions for this user.</p>
+          </div>
+
         <div className="space-y-6">
           <div className="bg-gray-50 p-4 rounded-xl space-y-2 border">
             <h3 className="font-bold">{editingUser?.name || editingUser?.email}</h3>
@@ -232,7 +238,8 @@ export default function SettingsManagementPage() {
             {saveMutation.isPending ? 'Applying Changes...' : 'Save Permissions'}
           </button>
         </div>
-      </Modal>
+        </div>
+      </BaseModal>
     </div>
   );
 }

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Modal } from '@/components/ui/modal';
+import { BaseModal } from '@/components/ui/BaseModal';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LoadingScreen } from '@/components/ui/loading-screen';
@@ -219,11 +219,17 @@ export default function StationsManagementPage() {
         }
       />
 
-      <Modal 
+      <BaseModal 
         isOpen={isModalOpen} 
         onClose={closeModal} 
-        title={editingStation ? 'Update Station' : 'Deploy New Station'}
+        showFooter={false}
       >
+        <div className="flex flex-col gap-6">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900">{editingStation ? 'Update Station' : 'Deploy New Station'}</h2>
+            <p className="text-gray-500 text-sm font-medium">Configure deployment zone and capacity.</p>
+          </div>
+
         <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(formData); }} className="space-y-4">
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-gray-400">Station Name</label>
@@ -287,7 +293,8 @@ export default function StationsManagementPage() {
             {saveMutation.isPending ? 'Syncing Base...' : 'Save Configuration'}
           </button>
         </form>
-      </Modal>
+        </div>
+      </BaseModal>
 
       <ConfirmModal
         isOpen={!!confirmDelete}

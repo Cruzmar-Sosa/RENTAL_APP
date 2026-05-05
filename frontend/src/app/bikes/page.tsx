@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Modal } from '@/components/ui/modal';
+import { BaseModal } from '@/components/ui/BaseModal';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LoadingScreen } from '@/components/ui/loading-screen';
@@ -274,12 +274,18 @@ export default function BikesManagementPage() {
         }
       />
 
-      <Modal 
+      <BaseModal 
         isOpen={isModalOpen} 
         onClose={closeModal} 
-        title={editingBike ? 'Update Unit' : 'Add New Unit'}
+        showFooter={false}
       >
-        <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(formData); }} className="space-y-4">
+        <div className="flex flex-col gap-6">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900">{editingBike ? 'Update Unit' : 'Add New Unit'}</h2>
+            <p className="text-gray-500 text-sm font-medium">Configure hardware and station assignment.</p>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(formData); }} className="space-y-4">
           {!editingBike && (
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase text-gray-400">Hardware ID</label>
@@ -345,8 +351,9 @@ export default function BikesManagementPage() {
           >
             {saveMutation.isPending ? 'Syncing...' : 'Save Unit Config'}
           </button>
-        </form>
-      </Modal>
+          </form>
+        </div>
+      </BaseModal>
 
       <ConfirmModal
         isOpen={!!confirmDelete}
