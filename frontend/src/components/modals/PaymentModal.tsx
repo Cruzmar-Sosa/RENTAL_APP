@@ -66,12 +66,14 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
       </Button>
       <Button 
         onClick={handlePay} 
-        disabled={loading}
+        disabled={loading || payment.reservation?.status === 'CANCELLED'}
         className={cn(
-          "h-14 sm:h-16 rounded-2xl flex-[2] font-black transition-all flex items-center justify-center gap-2 text-base shadow-xl",
-          isRefund 
-            ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-emerald-100" 
-            : "bg-black text-white hover:bg-gray-800 hover:scale-[1.01] active:scale-95 shadow-gray-200"
+          "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base shadow-xl",
+          payment.reservation?.status === 'CANCELLED' 
+            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+            : isRefund 
+              ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-emerald-100" 
+              : "bg-black text-white hover:bg-gray-800 hover:scale-[1.01] active:scale-95 shadow-gray-200"
         )}
       >
         {loading ? (
@@ -93,6 +95,21 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
       footer={modalFooter}
     >
       <div className="space-y-8">
+        {/* Cancelled Warning */}
+        {payment.reservation?.status === 'CANCELLED' && (
+          <div className="bg-red-50 border-2 border-red-100 p-6 rounded-[2rem] flex gap-5 items-start animate-in zoom-in-95">
+            <div className="p-3 bg-red-100 text-red-600 rounded-2xl shadow-sm">
+              <AlertCircle size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-red-900 uppercase tracking-widest mb-1">Reservation Cancelled</p>
+              <p className="text-xs text-red-800 font-bold leading-relaxed">
+                This payment is linked to a cancelled reservation and cannot be processed. The payment status should be updated to FAILED automatically by the system.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Invoice ID Badge */}
         <div className="flex justify-center">
           <div className="px-4 py-2 bg-gray-50 border-2 border-gray-100 rounded-2xl flex items-center gap-3">

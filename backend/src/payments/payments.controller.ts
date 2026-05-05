@@ -24,8 +24,8 @@ export class PaymentsController {
 
   @Get()
   @Permissions('PAYMENTS', 'READ')
-  findAll() {
-    return this.paymentsService.findAll();
+  findAll(@Request() req: any) {
+    return this.paymentsService.findAll(req.user.role, req.user.sub);
   }
 
   @Get('my')

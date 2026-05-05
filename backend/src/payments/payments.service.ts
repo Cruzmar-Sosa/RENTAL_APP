@@ -61,8 +61,10 @@ export class PaymentsService {
     return updatedPayment;
   }
 
-  async findAll() {
+  async findAll(userRole: string, userId: string) {
+    const where = userRole === 'ADMIN' ? {} : { userId };
     return this.prisma.payment.findMany({
+      where,
       include: {
         user: { select: { id: true, email: true, name: true, documentType: true, documentNumber: true } },
         reservation: { 

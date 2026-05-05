@@ -105,5 +105,9 @@ export class CompleteRideDto {
 
   @IsOptional()
   @IsString()
+  incidentCategory?: string; // COMPANY_FAULT | CUSTOMER_FAULT
+
+  @IsOptional()
+  @IsString()
   incidentNotes?: string;
 }

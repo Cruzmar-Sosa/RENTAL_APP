@@ -48,6 +48,22 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
   ]);
 
   const [paymentOption, setPaymentOption] = useState<'DEPOSIT' | 'FULL' | 'LATER'>('DEPOSIT');
+  const [hasInteractedWithTime, setHasInteractedWithTime] = useState(false);
+
+  // Dynamic Time logic (Guard: No user server time)
+  useEffect(() => {
+    if (isOpen && !hasInteractedWithTime) {
+      const timer = setInterval(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        setStartDate(`${year}-${month}-${day}`);
+        setStartTime(now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [isOpen, hasInteractedWithTime]);
 
   // Calculations
   const extrasTotal = extras.filter(e => e.selected).reduce((acc, curr) => acc + curr.price, 0);
@@ -170,7 +186,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
         <Button 
           onClick={handleNext} 
           disabled={(step === 1 && ((identityMode === 'REGISTERED' && !targetUser) || (identityMode === 'GUEST' && (!guestName || !guestDoc))))}
-          className="h-14 sm:h-16 rounded-2xl flex-[2] font-black bg-black text-white hover:scale-[1.01] active:scale-95 transition-all gap-2 text-base"
+          className="h-14 sm:h-16 rounded-2xl flex-2 font-black bg-black text-white hover:scale-[1.01] active:scale-95 transition-all gap-2 text-base"
         >
           Continue <ChevronRight size={20} />
         </Button>
@@ -178,7 +194,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
         <Button 
           onClick={handleSubmit} 
           disabled={loading}
-          className="h-14 sm:h-16 rounded-2xl flex-[2] font-black bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 transition-all gap-2 text-base"
+          className="h-14 sm:h-16 rounded-2xl flex-2 font-black bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 transition-all gap-2 text-base"
         >
           {loading ? (
             <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
@@ -321,11 +337,11 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Start Date</label>
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-16 rounded-2xl bg-gray-50 border-gray-200 text-lg font-bold" />
+                <Input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setHasInteractedWithTime(true); }} className="h-16 rounded-2xl bg-gray-50 border-gray-200 text-lg font-bold" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Start Time</label>
-                <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="h-16 rounded-2xl bg-gray-50 border-gray-200 text-lg font-bold" />
+                <Input type="time" value={startTime} onChange={e => { setStartTime(e.target.value); setHasInteractedWithTime(true); }} className="h-16 rounded-2xl bg-gray-50 border-gray-200 text-lg font-bold" />
               </div>
             </div>
 

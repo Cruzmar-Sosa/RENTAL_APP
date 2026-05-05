@@ -204,10 +204,19 @@ export class ReservationsService {
       const actualStart = reservation.actualStart || reservation.startTime;
       const rate = reservation.ratePerHour ?? this.DEFAULT_RATE;
 
+      // Logic for Refund / Override
+      const isCompanyFault = dto?.incidentCategory === 'COMPANY_FAULT';
+      const isAdminOverride = dto?.priceActual === 0; // Or we can check days/hours in future
+      
       let priceActual = dto?.priceActual;
       if (priceActual === undefined) {
         const hours = Math.max(1, Math.ceil((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60)));
         priceActual = (hours * rate) + (reservation.extrasTotal ?? 0);
+      }
+
+      // If company fault or admin override, total cost is 0
+      if (isCompanyFault || isAdminOverride) {
+        priceActual = 0;
       }
 
       // Use Financial Utility (Guard 2)
@@ -225,15 +234,15 @@ export class ReservationsService {
         });
         this.logger.log(`[SETTLEMENT] Generated BALANCE payment of $${balance} for Res ${id}`);
       } else if (balance < 0) {
-        // Guard 7: Refund only with incident
-        if (dto?.incidentType && dto?.incidentType !== 'NONE') {
+        // Guard 7: Refund only with incident or admin override
+        if (isCompanyFault || isAdminOverride || (dto?.incidentType && dto?.incidentType !== 'NONE')) {
           payments.push({
             amount: Math.abs(balance),
             userId: reservation.userId,
             status: 'PAID',
             type: 'REFUND',
           });
-          this.logger.log(`[SETTLEMENT] Generated REFUND of $${Math.abs(balance)} for Res ${id} due to ${dto.incidentType}`);
+          this.logger.log(`[SETTLEMENT] Generated REFUND of $${Math.abs(balance)} for Res ${id} due to ${dto?.incidentCategory || dto?.incidentType || 'Manual Override'}`);
         } else {
           this.logger.log(`[SETTLEMENT] Early finish without incident for Res ${id}. No refund generated.`);
         }
@@ -247,6 +256,7 @@ export class ReservationsService {
             actualEnd,
             priceActual,
             incidentType: dto?.incidentType || null,
+            incidentCategory: dto?.incidentCategory || null,
             incidentNotes: dto?.incidentNotes || null,
             payments: payments.length > 0
               ? { create: payments }
@@ -289,6 +299,10 @@ export class ReservationsService {
         this.prisma.bike.update({
           where: { id: reservation.bikeId },
           data: { status: 'AVAILABLE' },
+        }),
+        this.prisma.payment.updateMany({
+          where: { reservationId: id, status: 'PENDING' },
+          data: { status: 'FAILED' },
         }),
       ]);
 
@@ -380,6 +394,10 @@ export class ReservationsService {
           this.prisma.bike.update({
             where: { id: res.bikeId },
             data: { status: 'AVAILABLE' },
+          }),
+          this.prisma.payment.updateMany({
+            where: { reservationId: res.id, status: 'PENDING' },
+            data: { status: 'FAILED' },
           }),
         ]);
         

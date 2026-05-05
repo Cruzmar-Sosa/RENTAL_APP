@@ -165,6 +165,7 @@ model Reservation {
 
   // ── Settlement / Incidents ──
   incidentType   String?                              // MECHANICAL | TECHNICAL | OTHER
+  incidentCategory String?                            // COMPANY_FAULT | CUSTOMER_FAULT
   incidentNotes  String?                              // free-text
 
   payments       Payment[]

@@ -20,6 +20,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
   const [actualDays, setActualDays] = useState(0);
   const [actualHours, setActualHours] = useState(0);
   const [incidentType, setIncidentType] = useState('NONE');
+  const [incidentCategory, setIncidentCategory] = useState('CUSTOMER_FAULT');
   const [incidentNotes, setIncidentNotes] = useState('');
 
   useEffect(() => {
@@ -45,10 +46,14 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
 
   // Real Cost Calculation
   const realCost = (realDuration * rate) + (reservation.extrasTotal || 0);
+  const isCompanyFault = incidentType !== 'NONE' && incidentCategory === 'COMPANY_FAULT';
+  const effectiveRealCost = isCompanyFault ? 0 : realCost;
+  
   const amountPaid = reservation.payments
     ?.filter(p => p.status === 'PAID')
     .reduce((acc, p) => acc + (p.type === 'REFUND' ? -p.amount : p.amount), 0) || 0;
-  const balance = realCost - amountPaid;
+  
+  const balance = effectiveRealCost - amountPaid;
 
   const handleComplete = async () => {
     setLoading(true);
@@ -58,9 +63,10 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
 
       await onConfirm(reservation.id, 'complete', {
         balance,
-        priceActual: realCost,
+        priceActual: (incidentType !== 'NONE' && incidentCategory === 'COMPANY_FAULT') ? 0 : realCost,
         actualEnd: actualEnd.toISOString(),
         incidentType: incidentType !== 'NONE' ? incidentType : null,
+        incidentCategory: incidentType !== 'NONE' ? incidentCategory : null,
         incidentNotes: incidentType !== 'NONE' ? incidentNotes : null,
       });
       onClose();
@@ -80,7 +86,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
       </div>
       <div>
         <h2 className="text-2xl font-black tracking-tight text-gray-900">Ride Settlement</h2>
-        <p className="text-sm text-gray-500 font-medium tracking-normal uppercase tracking-widest text-[10px]">Review & Finalize Financials</p>
+        <p className="text-sm text-gray-500 font-medium uppercase tracking-widest text-[10px]">Review & Finalize Financials</p>
       </div>
     </div>
   );
@@ -94,7 +100,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
         onClick={handleComplete} 
         disabled={loading || realDuration < 0}
         className={cn(
-          "h-14 sm:h-16 rounded-2xl flex-[2] font-black transition-all flex items-center justify-center gap-2 text-base",
+          "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base",
           "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-xl shadow-emerald-100"
         )}
       >
@@ -238,6 +244,32 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
                   </SelectContent>
                 </Select>
               </div>
+
+              {incidentType !== 'NONE' && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Responsibility</label>
+                  <div className="grid grid-cols-2 gap-3 p-1.5 bg-gray-50 rounded-2xl">
+                    <button 
+                      onClick={() => setIncidentCategory('COMPANY_FAULT')}
+                      className={cn(
+                        "py-3 rounded-xl text-[10px] font-black uppercase transition-all",
+                        incidentCategory === 'COMPANY_FAULT' ? 'bg-black text-white shadow-md' : 'text-gray-400 hover:text-black'
+                      )}
+                    >
+                      Company Fault (100% Refund)
+                    </button>
+                    <button 
+                      onClick={() => setIncidentCategory('CUSTOMER_FAULT')}
+                      className={cn(
+                        "py-3 rounded-xl text-[10px] font-black uppercase transition-all",
+                        incidentCategory === 'CUSTOMER_FAULT' ? 'bg-black text-white shadow-md' : 'text-gray-400 hover:text-black'
+                      )}
+                    >
+                      Customer Fault
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Justification / Detail</label>

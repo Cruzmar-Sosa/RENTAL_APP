@@ -82,6 +82,7 @@ export interface Payment {
   stripePaymentIntentId?: string;
   paidAt?: string;
   createdAt: string;
+  reservation?: Reservation;
 }
 
 export interface Route {

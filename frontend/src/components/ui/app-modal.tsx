@@ -25,11 +25,11 @@ interface AppModalProps {
 }
 
 const sizeMap: Record<ModalSize, string> = {
-  sm: 'sm:max-w-md',
-  md: 'sm:max-w-lg',
-  lg: 'sm:max-w-2xl',
-  xl: 'sm:max-w-4xl',
-  full: 'sm:max-w-6xl sm:w-[90vw]'
+  sm: 'sm:max-w-[95%] md:max-w-[400px]',
+  md: 'sm:max-w-[95%] md:max-w-[700px]',
+  lg: 'sm:max-w-[95%] md:max-w-[900px]',
+  xl: 'sm:max-w-[95%] md:max-w-[1100px]',
+  full: 'sm:max-w-[98%] md:max-w-[1400px]'
 }
 
 export function AppModal({
@@ -48,31 +48,44 @@ export function AppModal({
   stickyFooter = true,
   closeOnOutsideClick = false
 }: AppModalProps) {
+  // Use a ref to track if the modal is currently closing to prevent flicker
+  const isClosing = React.useRef(false);
+
+  const handleOpenChange = (open: boolean, event?: any, reason?: string) => {
+    if (isClosing.current) return;
+
+    // Prevent closing if outside interaction is disabled
+    if (!open && reason === 'outside-click' && !closeOnOutsideClick) {
+      return;
+    }
+
+    if (!open) {
+      isClosing.current = true;
+      onClose();
+      // Reset after a short delay to allow state updates to propagate
+      setTimeout(() => {
+        isClosing.current = false;
+      }, 300);
+    }
+  };
+
   return (
     <Dialog 
       open={isOpen} 
-      onOpenChange={(open, eventDetails) => {
-        // Prevent closing on outside interaction if requested
-        if (!open && (eventDetails as any)?.reason === 'interact-outside' && !closeOnOutsideClick) {
-          (eventDetails as any).cancel();
-          return;
-        }
-        if (!open) onClose();
-      }}
+      onOpenChange={handleOpenChange}
     >
       <DialogContent 
         className={cn(
           // Base styles
-          "p-0 overflow-hidden flex flex-col gap-0 !max-w-none", // Reset default max-w
-          // Responsive sizing
-          "w-full h-[100dvh] sm:h-auto sm:max-h-[90vh]",
-          // Size map
+          "p-0 overflow-hidden flex flex-col gap-0 max-w-none!", // Reset default max-w
+          // Responsive sizing: 95% width on mobile, auto height
+          "w-[95%] h-auto max-h-[95vh] sm:h-auto sm:max-h-[90vh]",
+          // Size map for desktop
           sizeMap[size],
+          // Centered positioning (Radix handles this, but we reinforce)
+          "left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]",
           // Transitions and appearance
-          "sm:rounded-[2rem] border-0 shadow-2xl bg-white",
-          "data-open:animate-in data-closed:animate-out",
-          "data-open:fade-in-0 data-closed:fade-out-0",
-          "data-open:zoom-in-95 data-closed:zoom-out-95",
+          "rounded-[1.5rem] sm:rounded-[2rem] border-0 shadow-2xl bg-white",
           "duration-200",
           className
         )}

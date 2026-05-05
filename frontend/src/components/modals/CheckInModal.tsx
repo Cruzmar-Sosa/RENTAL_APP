@@ -71,7 +71,7 @@ export function CheckInModal({ isOpen, onClose, reservation, onConfirm }: CheckI
         onClick={handleSubmit} 
         disabled={loading || !allAccepted}
         className={cn(
-          "h-14 sm:h-16 rounded-2xl flex-[2] font-black transition-all flex items-center justify-center gap-2 text-base",
+          "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base",
           allAccepted 
             ? 'bg-black text-white hover:scale-[1.01] active:scale-95' 
             : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-100'
