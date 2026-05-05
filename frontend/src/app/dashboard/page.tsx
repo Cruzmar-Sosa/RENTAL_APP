@@ -9,7 +9,8 @@ import { toast } from 'sonner';
 import { MapPin, Bike as BikeIcon, Zap, ShieldCheck, DollarSign, Activity, Settings2, Play } from 'lucide-react';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
 import { ReserveModal } from '@/components/modals/ReserveModal';
 import { SettlementModal } from '@/components/modals/SettlementModal';
 import { CheckInModal } from '@/components/modals/CheckInModal';
@@ -41,6 +42,28 @@ export default function DashboardPage() {
     },
     enabled: authLoaded && user?.role === 'ADMIN'
   });
+
+  // Real-time Expiration Listener (Guard 4)
+  useEffect(() => {
+    if (!authLoaded || !user) return;
+
+    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    const socket = io(`${wsUrl}/tracking`, {
+      path: '/socket.io',
+      transports: ['websocket'],
+    });
+
+    socket.on('reservation_expired', (data: { bikeId: string, reservationId: string }) => {
+      console.log('🔔 Reservation Expired Real-time:', data);
+      toast.info(`Reservation #${data.reservationId.slice(0,8)} expired and bike was released.`);
+      refetch();
+      if (user?.role === 'ADMIN') refetchReservations();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [authLoaded, user, refetch, refetchReservations]);
 
   const handleOpenReserve = (bikeId: string) => {
     setSelectedBikeId(bikeId);

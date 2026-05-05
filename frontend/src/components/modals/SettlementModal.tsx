@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, Clock, Calculator, User, AlertCircle, Timer, Zap, History } from 'lucide-react';
+import { CheckCircle2, Clock, Calculator, User, AlertCircle, Timer, Zap, History, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { Reservation } from '@/types';
 
@@ -42,8 +42,11 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
   const realDuration = (actualDays * 24) + actualHours;
   const diffDuration = realDuration - estDuration;
 
+  // Real Cost Calculation (Financial State Guard 2)
   const realCost = (realDuration * rate) + (reservation.extrasTotal || 0);
-  const amountPaid = reservation.payments?.reduce((acc, p) => acc + (p.status === 'PAID' ? p.amount : 0), 0) || 0;
+  const amountPaid = reservation.payments
+    ?.filter(p => p.status === 'PAID')
+    .reduce((acc, p) => acc + (p.type === 'REFUND' ? -p.amount : p.amount), 0) || 0;
   const balance = realCost - amountPaid;
 
   const handleComplete = async () => {
@@ -60,8 +63,8 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
         incidentNotes: incidentType !== 'NONE' ? incidentNotes : null,
       });
       onClose();
-    } catch (error) {
-      toast.error('Failed to complete ride.');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to complete ride.');
     } finally {
       setLoading(false);
     }
@@ -88,15 +91,15 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
           
           <div className="grid grid-cols-3 gap-4 bg-black/20 p-4 rounded-2xl">
             <div className="text-center">
-              <p className="text-[10px] font-black text-white/50 uppercase">Estimated</p>
+              <p className="text-[10px] font-black text-white/50 uppercase">Estimado</p>
               <p className="text-lg font-black">{estDuration}h</p>
             </div>
             <div className="text-center border-x border-white/10">
-              <p className="text-[10px] font-black text-white/50 uppercase">Real Used</p>
+              <p className="text-[10px] font-black text-white/50 uppercase">Uso Real</p>
               <p className="text-lg font-black">{realDuration}h</p>
             </div>
             <div className="text-center">
-              <p className="text-[10px] font-black text-white/50 uppercase">Difference</p>
+              <p className="text-[10px] font-black text-white/50 uppercase">Diferencia</p>
               <p className={`text-lg font-black ${diffDuration > 0 ? 'text-orange-300' : 'text-emerald-300'}`}>
                 {diffDuration > 0 ? `+${diffDuration}h` : `${diffDuration}h`}
               </p>
@@ -116,14 +119,55 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
             </div>
           </div>
 
+          {/* Financial Card (UX Guard 9) */}
+          <div className="bg-white border-2 border-gray-100 rounded-[2rem] overflow-hidden shadow-sm">
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign size={16} className="text-gray-400" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Desglose Financiero</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-y-4">
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase">Costo Estimado</p>
+                  <p className="text-sm font-bold text-gray-600">${reservation.priceEstimated?.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase">Costo Real</p>
+                  <p className="text-sm font-black text-gray-900">${realCost.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase">Pagado</p>
+                  <p className="text-sm font-bold text-emerald-600">${amountPaid.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase">Pendiente</p>
+                  <p className={`text-sm font-black ${balance > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                    ${Math.max(0, balance).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              <div className={`mt-4 pt-4 border-t-2 border-dashed border-gray-100 flex justify-between items-center ${balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-gray-400">Balance Final</p>
+                  <p className="text-3xl font-black">
+                    {balance > 0 ? `A Pagar: $${balance.toFixed(2)}` : balance < 0 ? `Reembolso: $${Math.abs(balance).toFixed(2)}` : '$0.00'}
+                  </p>
+                </div>
+                <Zap size={24} className={balance > 0 ? 'text-orange-300' : 'text-emerald-300'} />
+              </div>
+            </div>
+          </div>
+
           {/* Time Editing */}
           <div className="space-y-3">
             <p className="text-xs font-black text-gray-500 uppercase ml-1 flex items-center gap-2">
-              <Timer size={14} className="text-emerald-600" /> Billed Duration (Adjustable)
+              <Timer size={14} className="text-emerald-600" /> Ajustar Duración Facturable
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="relative">
-                <label className="absolute left-4 top-2 text-[8px] font-black text-gray-400 uppercase">Days</label>
+                <label className="absolute left-4 top-2 text-[8px] font-black text-gray-400 uppercase">Días</label>
                 <Input 
                   type="number" min="0" 
                   className="h-14 pt-6 rounded-2xl bg-gray-50 font-bold text-lg"
@@ -131,7 +175,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
                 />
               </div>
               <div className="relative">
-                <label className="absolute left-4 top-2 text-[8px] font-black text-gray-400 uppercase">Hours</label>
+                <label className="absolute left-4 top-2 text-[8px] font-black text-gray-400 uppercase">Horas</label>
                 <Input 
                   type="number" min="0" max="23"
                   className="h-14 pt-6 rounded-2xl bg-gray-50 font-bold text-lg"
@@ -141,48 +185,25 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
             </div>
           </div>
 
-          {/* Financial Breakdown */}
-          <div className="bg-white border-2 border-gray-100 rounded-[2rem] overflow-hidden shadow-sm">
-            <div className="p-5 space-y-3">
-              <div className="flex justify-between text-sm font-bold text-gray-500">
-                <span>Calculated Cost ({realDuration}h)</span>
-                <span className="text-gray-900">${realCost.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm font-bold text-gray-500">
-                <span>Already Paid</span>
-                <span className="text-emerald-600">-${amountPaid.toFixed(2)}</span>
-              </div>
-            </div>
-            <div className={`p-5 flex justify-between items-center ${balance > 0 ? 'bg-orange-50 border-t-2 border-orange-100' : 'bg-emerald-50 border-t-2 border-emerald-100'}`}>
-              <div>
-                <p className="text-[10px] font-black uppercase text-gray-400">Final Balance</p>
-                <p className={`text-2xl font-black ${balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                  {balance > 0 ? `Pay: $${balance.toFixed(2)}` : balance < 0 ? `Refund: $${Math.abs(balance).toFixed(2)}` : 'Settle: $0.00'}
-                </p>
-              </div>
-              <Zap size={24} className={balance > 0 ? 'text-orange-300' : 'text-emerald-300'} />
-            </div>
-          </div>
-
           {/* Incident Section */}
           <div className="space-y-3">
             <p className="text-xs font-black text-gray-500 uppercase ml-1 flex items-center gap-2">
-              <History size={14} className="text-blue-500" /> Report Incident (Optional)
+              <History size={14} className="text-blue-500" /> Reportar Incidencia (Requerido para Reembolso)
             </p>
             <Select value={incidentType} onValueChange={(val) => setIncidentType(val || 'NONE')}>
               <SelectTrigger className="h-14 rounded-2xl bg-gray-50 border-gray-100">
-                <SelectValue placeholder="No incident" />
+                <SelectValue placeholder="Sin incidencias" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="NONE">No Incident (Regular Return)</SelectItem>
-                <SelectItem value="MECHANICAL">Mechanical Failure (Bike issue)</SelectItem>
-                <SelectItem value="TECHNICAL">Technical Error (App/System issue)</SelectItem>
-                <SelectItem value="OTHER">Other / Misc</SelectItem>
+                <SelectItem value="NONE">Sin Incidencia (Retorno Normal)</SelectItem>
+                <SelectItem value="MECHANICAL">Falla Mecánica (Problema bici)</SelectItem>
+                <SelectItem value="TECHNICAL">Error Técnico (Problema App/Sistema)</SelectItem>
+                <SelectItem value="OTHER">Otro / Varios</SelectItem>
               </SelectContent>
             </Select>
             {incidentType !== 'NONE' && (
               <textarea
-                placeholder="Explain the incident details for refund justification..."
+                placeholder="Detalla la incidencia para justificar el reembolso..."
                 className="w-full h-20 p-4 rounded-2xl bg-blue-50/30 border-2 border-blue-100 focus:border-blue-400 outline-none transition-all text-xs"
                 value={incidentNotes}
                 onChange={e => setIncidentNotes(e.target.value)}
@@ -192,14 +213,14 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
 
           {/* Actions */}
           <div className="flex gap-4 pt-2">
-            <Button variant="outline" onClick={onClose} className="h-14 rounded-2xl flex-1 border-2 font-bold">Cancel</Button>
+            <Button variant="outline" onClick={onClose} className="h-14 rounded-2xl flex-1 border-2 font-bold">Cancelar</Button>
             <Button 
               onClick={handleComplete} 
               disabled={loading || realDuration < 0}
               className="h-14 rounded-2xl flex-[2] font-black bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
             >
               {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <CheckCircle2 size={20} />}
-              Confirm & Finish Ride
+              Confirmar y Cerrar Ride
             </Button>
           </div>
 
@@ -207,8 +228,8 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
             <div className="flex gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100 items-start">
               <AlertCircle size={14} className="text-blue-600 shrink-0 mt-0.5" />
               <p className="text-[10px] text-blue-800 font-bold leading-tight">
-                Note: Early returns without an incident report are not automatically refunded per business policy. 
-                If you want to issue a refund, select an incident type.
+                Nota: Las devoluciones anticipadas sin reporte de incidencia no generan reembolso automático por política de negocio. 
+                Si deseas emitir un reembolso, selecciona un tipo de incidencia.
               </p>
             </div>
           )}

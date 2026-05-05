@@ -7,6 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   controllers: [TrackingController],
-  providers: [TrackingService, TrackingGateway]
+  providers: [TrackingService, TrackingGateway],
+  exports: [TrackingGateway]
 })
 export class TrackingModule {}

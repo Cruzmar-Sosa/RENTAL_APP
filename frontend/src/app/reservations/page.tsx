@@ -7,7 +7,8 @@ import { Calendar, Bike as BikeIcon, User as UserIcon, CheckCircle, XCircle, Clo
 import { cn } from '@/lib/utils';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { AccessDenied } from '@/components/ui/access-denied';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { CheckInModal } from '@/components/modals/CheckInModal';
 import { SettlementModal } from '@/components/modals/SettlementModal';
@@ -28,7 +29,7 @@ export default function ReservationsAdminPage() {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [activeReservation, setActiveReservation] = useState<any>(null);
 
-  const { data: reservations, isLoading } = useQuery({
+  const { data: reservations, isLoading, refetch } = useQuery({
     queryKey: ['admin-reservations-detailed', canRead('RESERVATIONS')],
     queryFn: async () => {
       const endpoint = canRead('RESERVATIONS') ? '/reservations' : '/reservations/my';
@@ -36,6 +37,27 @@ export default function ReservationsAdminPage() {
     },
     enabled: isLoaded
   });
+
+  // Real-time Expiration Listener (Guard 4)
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    const socket = io(`${wsUrl}/tracking`, {
+      path: '/socket.io',
+      transports: ['websocket'],
+    });
+
+    socket.on('reservation_expired', (data: { bikeId: string, reservationId: string }) => {
+      console.log('🔔 Reservation Expired Real-time:', data);
+      toast.info(`Reservation #${data.reservationId.slice(0,8)} expired.`);
+      refetch();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isLoaded, refetch]);
 
   const actionMutation = useMutation({
     mutationFn: async ({ id, type, data }: {id: string, type: 'start' | 'complete' | 'cancel', data?: any}) => {

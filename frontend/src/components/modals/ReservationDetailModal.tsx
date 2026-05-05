@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { 
   Bike, User, Clock, CreditCard, ShieldCheck, MapPin, 
   Calendar, Info, AlertTriangle, FileText, CheckCircle2, 
-  XCircle, Timer, Zap, History, Receipt
+  XCircle, Timer, Zap, History, Receipt, DollarSign
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Reservation } from '@/types';
@@ -51,6 +51,17 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
     }
   };
 
+  // Financial State logic (Guard 2)
+  const amountPaid = reservation?.payments
+    ?.filter(p => p.status === 'PAID')
+    .reduce((acc, p) => acc + (p.type === 'REFUND' ? -p.amount : p.amount), 0) || 0;
+  
+  const amountPending = reservation?.payments
+    ?.filter(p => p.status === 'PENDING')
+    .reduce((acc, p) => acc + p.amount, 0) || 0;
+
+  const finalTotal = reservation?.priceActual || reservation?.priceEstimated || 0;
+
   const clientName = reservation?.guestName || reservation?.clientName || reservation?.user?.name || 'Unknown';
   const clientEmail = reservation?.user?.email || 'Walk-in Guest';
   const clientDoc = reservation?.guestDocument || reservation?.user?.documentNumber || 'N/A';
@@ -61,7 +72,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
         {loading ? (
           <div className="p-20 flex flex-col items-center justify-center gap-4">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent" />
-            <p className="font-bold text-gray-500">Loading master records...</p>
+            <p className="font-bold text-gray-500">Cargando registros maestros...</p>
           </div>
         ) : reservation && (
           <div className="flex flex-col">
@@ -73,7 +84,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                     <Receipt size={28} />
                   </div>
                   <div>
-                    <h2 className="text-3xl font-black">Reservation Detail</h2>
+                    <h2 className="text-3xl font-black">Detalle de Reserva</h2>
                     <p className="text-white/60 font-medium text-sm">Ref: {reservation.id}</p>
                   </div>
                 </div>
@@ -87,8 +98,8 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase text-white/40 mb-1">Total Estimated</p>
-                <p className="text-5xl font-black">${reservation.priceEstimated?.toFixed(2)}</p>
+                <p className="text-[10px] font-black uppercase text-white/40 mb-1">Costo Actual/Final</p>
+                <p className="text-5xl font-black">${finalTotal.toFixed(2)}</p>
               </div>
             </div>
 
@@ -97,7 +108,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
               <div className="space-y-8">
                 <section>
                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <User size={14} /> Client Identity
+                    <User size={14} /> Identidad del Cliente
                   </h3>
                   <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 space-y-4">
                     <div className="flex items-center gap-4">
@@ -110,30 +121,30 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                       </div>
                     </div>
                     <div className="pt-4 border-t border-gray-200 grid grid-cols-1 gap-2">
-                       <p className="text-xs font-bold text-gray-600">Document: <span className="text-gray-900">{clientDoc}</span></p>
-                       <p className="text-xs font-bold text-gray-600">Phone: <span className="text-gray-900">{reservation.guestPhone || reservation.clientPhone || reservation.user?.phone || 'N/A'}</span></p>
+                       <p className="text-xs font-bold text-gray-600">Documento: <span className="text-gray-900">{clientDoc}</span></p>
+                       <p className="text-xs font-bold text-gray-600">Teléfono: <span className="text-gray-900">{reservation.guestPhone || reservation.clientPhone || reservation.user?.phone || 'N/A'}</span></p>
                     </div>
                   </div>
                 </section>
 
                 <section>
                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Bike size={14} /> Vehicle Information
+                    <Bike size={14} /> Información del Vehículo
                   </h3>
                   <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold text-gray-600">Bike Code</span>
+                      <span className="text-sm font-bold text-gray-600">Código Bici</span>
                       <span className="font-black text-gray-900">#{reservation.bike?.code || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold text-gray-600">Current Status</span>
+                      <span className="text-sm font-bold text-gray-600">Estado Actual</span>
                       <span className="px-2 py-0.5 rounded-lg bg-white text-[10px] font-black shadow-sm uppercase">{reservation.bike?.status}</span>
                     </div>
                     {reservation.bikeCondition && (
                        <div className="pt-4 border-t border-gray-200">
-                          <p className="text-xs font-black text-gray-400 uppercase mb-1">Check-in Condition</p>
+                          <p className="text-xs font-black text-gray-400 uppercase mb-1">Condición Check-in</p>
                           <p className="text-sm font-bold text-orange-600">{reservation.bikeCondition}</p>
-                          <p className="text-xs text-gray-500 italic mt-1">"{reservation.bikeNotes || 'No notes provided'}"</p>
+                          <p className="text-xs text-gray-500 italic mt-1">"{reservation.bikeNotes || 'Sin notas adicionales'}"</p>
                        </div>
                     )}
                   </div>
@@ -144,20 +155,20 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
               <div className="space-y-8">
                 <section>
                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Timer size={14} /> Timeline & Duration
+                    <Timer size={14} /> Línea de Tiempo
                   </h3>
                   <div className="relative pl-6 border-l-2 border-gray-100 space-y-8">
                     {/* Created */}
                     <div className="relative">
                       <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white ring-1 ring-emerald-500" />
-                      <p className="text-[10px] font-black text-gray-400 uppercase">Created</p>
+                      <p className="text-[10px] font-black text-gray-400 uppercase">Reserva Creada</p>
                       <p className="text-sm font-bold text-gray-900">{new Date(reservation.startTime).toLocaleString()}</p>
                     </div>
                     {/* Actual Start */}
                     {reservation.actualStart && (
                       <div className="relative">
                         <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-blue-500 border-4 border-white ring-1 ring-blue-500" />
-                        <p className="text-[10px] font-black text-gray-400 uppercase">Ride Started</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase">Inicio de Viaje</p>
                         <p className="text-sm font-bold text-gray-900">{new Date(reservation.actualStart).toLocaleString()}</p>
                       </div>
                     )}
@@ -165,7 +176,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                     {reservation.actualEnd && (
                       <div className="relative">
                         <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-gray-900 border-4 border-white ring-1 ring-gray-900" />
-                        <p className="text-[10px] font-black text-gray-400 uppercase">Ride Completed</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase">Viaje Finalizado</p>
                         <p className="text-sm font-bold text-gray-900">{new Date(reservation.actualEnd).toLocaleString()}</p>
                       </div>
                     )}
@@ -174,7 +185,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                   {reservation.incidentType && (
                     <div className="mt-6 p-5 bg-red-50 border border-red-100 rounded-3xl">
                        <h4 className="text-xs font-black text-red-600 uppercase mb-2 flex items-center gap-2">
-                          <AlertTriangle size={14} /> Reported Incident
+                          <AlertTriangle size={14} /> Incidencia Reportada
                        </h4>
                        <p className="text-sm font-bold text-red-900">{reservation.incidentType}</p>
                        <p className="text-xs text-red-700 mt-1">{reservation.incidentNotes}</p>
@@ -184,24 +195,24 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
 
                 <section>
                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Info size={14} /> Financial Audit
+                    <Info size={14} /> Auditoría Financiera (Guard 9)
                   </h3>
                   <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 space-y-3">
                      <div className="flex justify-between text-xs font-bold text-gray-500">
-                        <span>Rate per Hour</span>
-                        <span className="text-gray-900">${reservation.ratePerHour}/hr</span>
+                        <span>Estimado Original</span>
+                        <span className="text-gray-900">${reservation.priceEstimated?.toFixed(2)}</span>
                      </div>
                      <div className="flex justify-between text-xs font-bold text-gray-500">
-                        <span>Extras Total</span>
-                        <span className="text-gray-900">${reservation.extrasTotal?.toFixed(2)}</span>
+                        <span>Costo Real Final</span>
+                        <span className="text-gray-900 font-black">${reservation.priceActual?.toFixed(2) || '---'}</span>
                      </div>
                      <div className="flex justify-between text-xs font-bold text-gray-500 pt-2 border-t border-gray-200">
-                        <span>Estimated Total</span>
-                        <span className="text-gray-900 font-black">${reservation.priceEstimated?.toFixed(2)}</span>
+                        <span>Total Pagado</span>
+                        <span className="text-emerald-600 font-black">${amountPaid.toFixed(2)}</span>
                      </div>
                      <div className="flex justify-between text-xs font-bold text-gray-500">
-                        <span>Actual Total</span>
-                        <span className="text-emerald-600 font-black">${reservation.priceActual?.toFixed(2) || '---'}</span>
+                        <span>Pendiente</span>
+                        <span className="text-orange-600 font-black">${amountPending.toFixed(2)}</span>
                      </div>
                   </div>
                 </section>
@@ -211,7 +222,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
               <div className="space-y-8">
                 <section>
                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <History size={14} /> Payment Ledger
+                    <History size={14} /> Historial de Pagos
                   </h3>
                   <div className="space-y-3">
                     {reservation.payments && reservation.payments.length > 0 ? (
@@ -225,38 +236,38 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                            </div>
                            <div className="flex justify-between items-end">
                               <p className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</p>
-                              <p className="text-lg font-black">${p.amount.toFixed(2)}</p>
+                              <p className="text-lg font-black">{p.type === 'REFUND' ? '-' : ''}${p.amount.toFixed(2)}</p>
                            </div>
                         </div>
                       ))
                     ) : (
                       <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed">
-                        <p className="text-xs font-bold text-gray-400">No payment records found.</p>
+                        <p className="text-xs font-bold text-gray-400">No hay registros de pago.</p>
                       </div>
                     )}
                   </div>
                 </section>
 
                 <div className="p-6 bg-black text-white rounded-3xl space-y-4">
-                   <p className="text-[10px] font-black uppercase text-white/40">Business Snapshot</p>
+                   <p className="text-[10px] font-black uppercase text-white/40">Resumen Operativo</p>
                    {reservation.status === 'ACTIVE' ? (
                       <div className="flex items-center gap-3">
                          <Zap className="text-yellow-400 animate-pulse" size={20} />
-                         <p className="text-xs font-bold text-white/90">Revenue stream active</p>
+                         <p className="text-xs font-bold text-white/90">Flujo de ingresos activo</p>
                       </div>
                    ) : reservation.status === 'COMPLETED' ? (
                       <div className="flex items-center gap-3">
                          <CheckCircle2 className="text-emerald-400" size={20} />
-                         <p className="text-xs font-bold text-white/90">Full lifecycle finalized</p>
+                         <p className="text-xs font-bold text-white/90">Ciclo finalizado</p>
                       </div>
                    ) : (
                       <div className="flex items-center gap-3">
                          <AlertTriangle className="text-orange-400" size={20} />
-                         <p className="text-xs font-bold text-white/90">Awaiting status update</p>
+                         <p className="text-xs font-bold text-white/90">Esperando actualización</p>
                       </div>
                    )}
                    <Button onClick={onClose} className="w-full bg-white/10 hover:bg-white/20 text-white rounded-xl h-10 font-bold text-xs">
-                      Close Master View
+                      Cerrar Vista Maestra
                    </Button>
                 </div>
               </div>
