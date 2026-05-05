@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, Clock, Calculator, User, AlertCircle, Timer, Zap, History, DollarSign } from 'lucide-react';
+import { CheckCircle2, Clock, Calculator, User, AlertCircle, Timer, Zap, History, DollarSign, ArrowRight, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Reservation } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface SettlementModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
   const realDuration = (actualDays * 24) + actualHours;
   const diffDuration = realDuration - estDuration;
 
-  // Real Cost Calculation (Financial State Guard 2)
+  // Real Cost Calculation
   const realCost = (realDuration * rate) + (reservation.extrasTotal || 0);
   const amountPaid = reservation.payments
     ?.filter(p => p.status === 'PAID')
@@ -72,169 +73,214 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
 
   const clientName = reservation.guestName || reservation.clientName || reservation.user?.name || 'Unknown';
 
+  const modalTitle = (
+    <div className="flex items-center gap-4">
+      <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-100">
+        <CheckCircle2 size={24} />
+      </div>
+      <div>
+        <h2 className="text-2xl font-black tracking-tight text-gray-900">Ride Settlement</h2>
+        <p className="text-sm text-gray-500 font-medium tracking-normal uppercase tracking-widest text-[10px]">Review & Finalize Financials</p>
+      </div>
+    </div>
+  );
+
+  const modalFooter = (
+    <div className="flex flex-col sm:flex-row gap-4 w-full">
+      <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
+        Cancel
+      </Button>
+      <Button 
+        onClick={handleComplete} 
+        disabled={loading || realDuration < 0}
+        className={cn(
+          "h-14 sm:h-16 rounded-2xl flex-[2] font-black transition-all flex items-center justify-center gap-2 text-base",
+          "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-xl shadow-emerald-100"
+        )}
+      >
+        {loading ? (
+          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+        ) : (
+          <ShieldCheck size={20} />
+        )}
+        Confirm & Close Ride
+      </Button>
+    </div>
+  );
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl bg-white rounded-[2rem] p-0 border-0 shadow-2xl overflow-hidden">
-        {/* Header Section */}
-        <div className="bg-emerald-600 p-8 text-white">
-          <div className="flex justify-between items-center mb-6">
-            <DialogTitle className="text-2xl font-black flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-xl">
-                <CheckCircle2 size={24} />
+    <AppModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={modalTitle}
+      size="xl"
+      footer={modalFooter}
+    >
+      <div className="space-y-10 max-w-5xl mx-auto">
+        {/* Top Stats: Duration Analysis */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            { label: 'Estimated', value: `${estDuration}h`, icon: Clock, color: 'text-gray-400' },
+            { label: 'Actual Usage', value: `${realDuration}h`, icon: Timer, color: 'text-emerald-600' },
+            { 
+              label: 'Difference', 
+              value: diffDuration > 0 ? `+${diffDuration}h` : `${diffDuration}h`, 
+              icon: History, 
+              color: diffDuration > 0 ? 'text-orange-500' : 'text-blue-500' 
+            },
+          ].map((stat, i) => (
+            <div key={i} className="bg-white p-6 rounded-[2rem] border-2 border-gray-100 flex items-center gap-4 shadow-sm group hover:border-black transition-all">
+              <div className={cn("p-3 rounded-xl bg-gray-50 transition-colors group-hover:bg-black group-hover:text-white", stat.color)}>
+                <stat.icon size={20} />
               </div>
-              Ride Settlement
-            </DialogTitle>
-            <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-              Review & Finish
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                <p className="text-xl font-black text-gray-900">{stat.value}</p>
+              </div>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-4 bg-black/20 p-4 rounded-2xl">
-            <div className="text-center">
-              <p className="text-[10px] font-black text-white/50 uppercase">Estimado</p>
-              <p className="text-lg font-black">{estDuration}h</p>
-            </div>
-            <div className="text-center border-x border-white/10">
-              <p className="text-[10px] font-black text-white/50 uppercase">Uso Real</p>
-              <p className="text-lg font-black">{realDuration}h</p>
-            </div>
-            <div className="text-center">
-              <p className="text-[10px] font-black text-white/50 uppercase">Diferencia</p>
-              <p className={`text-lg font-black ${diffDuration > 0 ? 'text-orange-300' : 'text-emerald-300'}`}>
-                {diffDuration > 0 ? `+${diffDuration}h` : `${diffDuration}h`}
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
 
-        <div className="p-8 space-y-6">
-          {/* User Info Snapshot */}
-          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-            <div className="bg-black text-white w-10 h-10 rounded-xl flex items-center justify-center font-black">
-              {clientName.charAt(0)}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* Left Column: Financial Card */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 ml-2">
+              <DollarSign size={20} className="text-emerald-600" />
+              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Financial Summary</h3>
             </div>
-            <div>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Client</p>
-              <p className="font-bold text-gray-900">{clientName}</p>
-            </div>
-          </div>
 
-          {/* Financial Card (UX Guard 9) */}
-          <div className="bg-white border-2 border-gray-100 rounded-[2rem] overflow-hidden shadow-sm">
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign size={16} className="text-gray-400" />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Desglose Financiero</span>
+            <div className="bg-black text-white p-8 rounded-[3rem] shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                <Calculator size={140} />
               </div>
               
-              <div className="grid grid-cols-2 gap-y-4">
+              <div className="grid grid-cols-2 gap-y-8 relative">
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase">Costo Estimado</p>
-                  <p className="text-sm font-bold text-gray-600">${reservation.priceEstimated?.toFixed(2)}</p>
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Total Actual Cost</p>
+                  <p className="text-3xl font-black">${realCost.toFixed(2)}</p>
+                  <p className="text-[10px] text-white/30 font-medium mt-1">Reflects {realDuration}h usage</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase">Costo Real</p>
-                  <p className="text-sm font-black text-gray-900">${realCost.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase">Pagado</p>
-                  <p className="text-sm font-bold text-emerald-600">${amountPaid.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase">Pendiente</p>
-                  <p className={`text-sm font-black ${balance > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
-                    ${Math.max(0, balance).toFixed(2)}
-                  </p>
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Amount Already Paid</p>
+                  <p className="text-3xl font-black text-emerald-400">${amountPaid.toFixed(2)}</p>
                 </div>
               </div>
 
-              <div className={`mt-4 pt-4 border-t-2 border-dashed border-gray-100 flex justify-between items-center ${balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                <div>
-                  <p className="text-[10px] font-black uppercase text-gray-400">Balance Final</p>
-                  <p className="text-3xl font-black">
-                    {balance > 0 ? `A Pagar: $${balance.toFixed(2)}` : balance < 0 ? `Reembolso: $${Math.abs(balance).toFixed(2)}` : '$0.00'}
-                  </p>
+              <div className="mt-10 pt-8 border-t border-white/10 relative">
+                <div className={cn(
+                  "flex justify-between items-center p-6 rounded-3xl",
+                  balance > 0 ? "bg-orange-500/10 border border-orange-500/20" : "bg-emerald-500/10 border border-emerald-500/20"
+                )}>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Final Balance</p>
+                    <p className="text-4xl font-black">
+                      ${Math.abs(balance).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className={cn(
+                      "text-xs font-black uppercase px-3 py-1 rounded-full",
+                      balance > 0 ? "bg-orange-500 text-white" : "bg-emerald-500 text-white"
+                    )}>
+                      {balance > 0 ? "Pending Payment" : balance < 0 ? "Refund Due" : "Settled"}
+                    </p>
+                  </div>
                 </div>
-                <Zap size={24} className={balance > 0 ? 'text-orange-300' : 'text-emerald-300'} />
+              </div>
+            </div>
+
+            {/* Adjust Duration */}
+            <div className="bg-gray-50 p-8 rounded-[2.5rem] border-2 border-gray-100 space-y-6">
+              <div className="flex items-center gap-3">
+                <Timer size={18} className="text-blue-500" />
+                <h4 className="text-sm font-black text-gray-900 uppercase">Override billable time</h4>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="relative group">
+                  <label className="absolute left-5 top-3 text-[9px] font-black text-gray-400 uppercase tracking-widest group-focus-within:text-black transition-colors">Days</label>
+                  <Input 
+                    type="number" min="0" 
+                    className="h-20 pt-8 rounded-2xl bg-white border-2 border-transparent focus:border-black font-black text-2xl transition-all shadow-sm"
+                    value={actualDays} onChange={e => setActualDays(parseInt(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="relative group">
+                  <label className="absolute left-5 top-3 text-[9px] font-black text-gray-400 uppercase tracking-widest group-focus-within:text-black transition-colors">Hours</label>
+                  <Input 
+                    type="number" min="0" max="23"
+                    className="h-20 pt-8 rounded-2xl bg-white border-2 border-transparent focus:border-black font-black text-2xl transition-all shadow-sm"
+                    value={actualHours} onChange={e => setActualHours(parseInt(e.target.value) || 0)}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Time Editing */}
-          <div className="space-y-3">
-            <p className="text-xs font-black text-gray-500 uppercase ml-1 flex items-center gap-2">
-              <Timer size={14} className="text-emerald-600" /> Ajustar Duración Facturable
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="relative">
-                <label className="absolute left-4 top-2 text-[8px] font-black text-gray-400 uppercase">Días</label>
-                <Input 
-                  type="number" min="0" 
-                  className="h-14 pt-6 rounded-2xl bg-gray-50 font-bold text-lg"
-                  value={actualDays} onChange={e => setActualDays(parseInt(e.target.value) || 0)}
-                />
+          {/* Right Column: Incidents & Validation */}
+          <div className="space-y-8">
+            <div className="flex items-center gap-3 ml-2">
+              <History size={20} className="text-blue-600" />
+              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Incidents & Notes</h3>
+            </div>
+
+            <div className="space-y-6 bg-white p-8 rounded-[2.5rem] border-2 border-gray-100 shadow-sm">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Reporting Category</label>
+                <Select value={incidentType} onValueChange={(val) => setIncidentType(val || 'NONE')}>
+                  <SelectTrigger className="h-16 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:border-black text-sm font-bold">
+                    <SelectValue placeholder="No incidents recorded" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl border-2">
+                    <SelectItem value="NONE" className="font-bold">None (Standard Return)</SelectItem>
+                    <SelectItem value="MECHANICAL" className="font-bold">Mechanical Failure (Bike Issue)</SelectItem>
+                    <SelectItem value="TECHNICAL" className="font-bold">Technical Error (App/System)</SelectItem>
+                    <SelectItem value="OTHER" className="font-bold">Other Reason</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="relative">
-                <label className="absolute left-4 top-2 text-[8px] font-black text-gray-400 uppercase">Horas</label>
-                <Input 
-                  type="number" min="0" max="23"
-                  className="h-14 pt-6 rounded-2xl bg-gray-50 font-bold text-lg"
-                  value={actualHours} onChange={e => setActualHours(parseInt(e.target.value) || 0)}
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Justification / Detail</label>
+                <textarea
+                  placeholder={incidentType === 'NONE' ? "Optional notes about the return..." : "Please describe the incident in detail to justify balance adjustments or refunds..."}
+                  className={cn(
+                    "w-full h-40 p-6 rounded-[2rem] border-2 outline-none transition-all text-sm font-medium resize-none",
+                    incidentType !== 'NONE' ? "bg-blue-50/50 border-blue-200 focus:border-blue-500" : "bg-gray-50 border-gray-100 focus:border-black"
+                  )}
+                  value={incidentNotes}
+                  onChange={e => setIncidentNotes(e.target.value)}
                 />
               </div>
             </div>
-          </div>
 
-          {/* Incident Section */}
-          <div className="space-y-3">
-            <p className="text-xs font-black text-gray-500 uppercase ml-1 flex items-center gap-2">
-              <History size={14} className="text-blue-500" /> Reportar Incidencia (Requerido para Reembolso)
-            </p>
-            <Select value={incidentType} onValueChange={(val) => setIncidentType(val || 'NONE')}>
-              <SelectTrigger className="h-14 rounded-2xl bg-gray-50 border-gray-100">
-                <SelectValue placeholder="Sin incidencias" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NONE">Sin Incidencia (Retorno Normal)</SelectItem>
-                <SelectItem value="MECHANICAL">Falla Mecánica (Problema bici)</SelectItem>
-                <SelectItem value="TECHNICAL">Error Técnico (Problema App/Sistema)</SelectItem>
-                <SelectItem value="OTHER">Otro / Varios</SelectItem>
-              </SelectContent>
-            </Select>
-            {incidentType !== 'NONE' && (
-              <textarea
-                placeholder="Detalla la incidencia para justificar el reembolso..."
-                className="w-full h-20 p-4 rounded-2xl bg-blue-50/30 border-2 border-blue-100 focus:border-blue-400 outline-none transition-all text-xs"
-                value={incidentNotes}
-                onChange={e => setIncidentNotes(e.target.value)}
-              />
+            {balance < 0 && incidentType === 'NONE' && (
+              <div className="bg-amber-50 border-2 border-amber-100 p-6 rounded-[2rem] flex gap-5 items-start animate-in slide-in-from-bottom-4">
+                <div className="p-3 bg-amber-100 text-amber-600 rounded-2xl shadow-sm">
+                  <AlertCircle size={24} />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-amber-900 uppercase tracking-widest mb-1">Business Policy Warning</p>
+                  <p className="text-xs text-amber-800 font-bold leading-relaxed">
+                    Early returns without a reported incident do not trigger automatic refunds. 
+                    <br /><br />
+                    To issue a refund, please select an <span className="underline">Incident Category</span> and provide justification.
+                  </p>
+                </div>
+              </div>
             )}
-          </div>
 
-          {/* Actions */}
-          <div className="flex gap-4 pt-2">
-            <Button variant="outline" onClick={onClose} className="h-14 rounded-2xl flex-1 border-2 font-bold">Cancelar</Button>
-            <Button 
-              onClick={handleComplete} 
-              disabled={loading || realDuration < 0}
-              className="h-14 rounded-2xl flex-[2] font-black bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
-            >
-              {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <CheckCircle2 size={20} />}
-              Confirmar y Cerrar Ride
-            </Button>
-          </div>
-
-          {balance < 0 && incidentType === 'NONE' && (
-            <div className="flex gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100 items-start">
-              <AlertCircle size={14} className="text-blue-600 shrink-0 mt-0.5" />
-              <p className="text-[10px] text-blue-800 font-bold leading-tight">
-                Nota: Las devoluciones anticipadas sin reporte de incidencia no generan reembolso automático por política de negocio. 
-                Si deseas emitir un reembolso, selecciona un tipo de incidencia.
-              </p>
+            <div className="flex items-center gap-4 p-6 bg-gray-50 rounded-[2rem] border-2 border-gray-100 border-dashed">
+              <div className="bg-black text-white w-12 h-12 rounded-xl flex items-center justify-center font-black shadow-lg">
+                {clientName.charAt(0)}
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Acknowledged by Client</p>
+                <p className="font-bold text-gray-900">{clientName}</p>
+              </div>
             </div>
-          )}
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </AppModal>
   );
 }
