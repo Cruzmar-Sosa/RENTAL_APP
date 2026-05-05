@@ -1,7 +1,9 @@
+"use client";
+
 import { useState } from 'react';
-import { AppModal } from '@/components/ui/app-modal';
+import { BaseModal } from '@/components/ui/BaseModal';
 import { Button } from '@/components/ui/button';
-import { Bike, User, Clock, ShieldCheck, AlertTriangle, FileText, CheckCircle2 } from 'lucide-react';
+import { Bike, Clock, ShieldCheck, AlertTriangle, FileText, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Reservation } from '@/types';
 import { cn } from '@/lib/utils';
@@ -50,47 +52,23 @@ export function CheckInModal({ isOpen, onClose, reservation, onConfirm }: CheckI
   const clientName = reservation.guestName || reservation.clientName || reservation.user?.name || 'Unknown';
   const clientDoc = reservation.guestDocument || reservation.user?.documentNumber || 'N/A';
 
-  const modalTitle = (
-    <div className="flex items-center gap-4">
-      <div className="p-3 bg-black text-white rounded-2xl">
-        <CheckCircle2 size={24} />
-      </div>
-      <div>
-        <h2 className="text-2xl font-black tracking-tight">Check-in Process</h2>
-        <p className="text-sm text-gray-500 font-medium tracking-normal">Complete the verification to start the ride</p>
-      </div>
-    </div>
-  );
-
-  const modalFooter = (
-    <div className="flex flex-col sm:flex-row gap-4 w-full">
-      <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
-        Cancel
-      </Button>
-      <Button 
-        onClick={handleSubmit} 
-        disabled={loading || !allAccepted}
-        className={cn(
-          "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base",
-          allAccepted 
-            ? 'bg-black text-white hover:scale-[1.01] active:scale-95' 
-            : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-100'
-        )}
-      >
-        {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <CheckCircle2 size={20} />}
-        Confirm & Start Ride
-      </Button>
-    </div>
-  );
-
   return (
-    <AppModal
+    <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title={modalTitle}
-      size="xl"
-      footer={modalFooter}
+      showFooter={false}
+      className="max-w-5xl"
     >
+      <div className="flex items-center gap-4 mb-8">
+        <div className="p-3 bg-black text-white rounded-2xl">
+          <CheckCircle2 size={24} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black tracking-tight">Check-in Process</h2>
+          <p className="text-sm text-gray-500 font-medium tracking-normal">Complete the verification to start the ride</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
         {/* Summary Side */}
         <div className="lg:col-span-2 space-y-8">
@@ -123,7 +101,7 @@ export function CheckInModal({ isOpen, onClose, reservation, onConfirm }: CheckI
                   </div>
                 </div>
                 <div className="flex items-center gap-4 group">
-                  <div className="p-2.5 bg-white rounded-xl border border-gray-100 shadow-sm text-gray-400 group-hover:text-orange-50 transition-colors">
+                  <div className="p-2.5 bg-white rounded-xl border border-gray-100 shadow-sm text-gray-400 group-hover:text-orange-500 transition-colors">
                     <Clock size={18} />
                   </div>
                   <div className="flex flex-col">
@@ -262,7 +240,27 @@ export function CheckInModal({ isOpen, onClose, reservation, onConfirm }: CheckI
           </div>
         </div>
       </div>
-    </AppModal>
+
+      {/* Unified Action Footer */}
+      <div className="flex flex-col sm:flex-row gap-4 w-full pt-8 mt-10 border-t-2 border-gray-50">
+        <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          disabled={loading || !allAccepted}
+          className={cn(
+            "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base shadow-xl",
+            allAccepted 
+              ? 'bg-black text-white hover:scale-[1.01] active:scale-95' 
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-100 shadow-none'
+          )}
+        >
+          {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <CheckCircle2 size={20} />}
+          Confirm & Start Ride
+        </Button>
+      </div>
+    </BaseModal>
   );
 }
 

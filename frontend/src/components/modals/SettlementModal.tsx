@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
-import { AppModal } from '@/components/ui/app-modal';
+"use client";
+
+import { useState, useMemo } from 'react';
+import { BaseModal } from '@/components/ui/BaseModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, Clock, Calculator, User, AlertCircle, Timer, Zap, History, DollarSign, ArrowRight, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock, Calculator, AlertCircle, Timer, History, DollarSign, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Reservation } from '@/types';
 import { cn } from '@/lib/utils';
@@ -17,25 +19,25 @@ interface SettlementModalProps {
 
 export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: SettlementModalProps) {
   const [loading, setLoading] = useState(false);
-  const [actualDays, setActualDays] = useState(0);
-  const [actualHours, setActualHours] = useState(0);
   const [incidentType, setIncidentType] = useState('NONE');
   const [incidentCategory, setIncidentCategory] = useState('CUSTOMER_FAULT');
   const [incidentNotes, setIncidentNotes] = useState('');
 
-  useEffect(() => {
-    if (reservation && isOpen) {
-      const actualStart = new Date(reservation.actualStart || reservation.startTime);
-      const now = new Date();
-      const diffMs = now.getTime() - actualStart.getTime();
-      const diffHrsTotal = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
+  // Initial duration calculation (Single Source of Truth)
+  const initialDuration = useMemo(() => {
+    if (!reservation) return { days: 0, hours: 0 };
+    const actualStart = new Date(reservation.actualStart || reservation.startTime);
+    const now = new Date();
+    const diffMs = now.getTime() - actualStart.getTime();
+    const diffHrsTotal = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
+    return {
+      days: Math.floor(diffHrsTotal / 24),
+      hours: diffHrsTotal % 24
+    };
+  }, [reservation]);
 
-      setActualDays(Math.floor(diffHrsTotal / 24));
-      setActualHours(diffHrsTotal % 24);
-      setIncidentType('NONE');
-      setIncidentNotes('');
-    }
-  }, [reservation, isOpen]);
+  const [actualDays, setActualDays] = useState(initialDuration.days);
+  const [actualHours, setActualHours] = useState(initialDuration.hours);
 
   if (!reservation) return null;
 
@@ -79,50 +81,24 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
 
   const clientName = reservation.guestName || reservation.clientName || reservation.user?.name || 'Unknown';
 
-  const modalTitle = (
-    <div className="flex items-center gap-4">
-      <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-100">
-        <CheckCircle2 size={24} />
-      </div>
-      <div>
-        <h2 className="text-2xl font-black tracking-tight text-gray-900">Ride Settlement</h2>
-        <p className="text-sm text-gray-500 font-medium uppercase tracking-widest text-[10px]">Review & Finalize Financials</p>
-      </div>
-    </div>
-  );
-
-  const modalFooter = (
-    <div className="flex flex-col sm:flex-row gap-4 w-full">
-      <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
-        Cancel
-      </Button>
-      <Button 
-        onClick={handleComplete} 
-        disabled={loading || realDuration < 0}
-        className={cn(
-          "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base",
-          "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-xl shadow-emerald-100"
-        )}
-      >
-        {loading ? (
-          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-        ) : (
-          <ShieldCheck size={20} />
-        )}
-        Confirm & Close Ride
-      </Button>
-    </div>
-  );
-
   return (
-    <AppModal
+    <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title={modalTitle}
-      size="xl"
-      footer={modalFooter}
+      showFooter={false}
+      className="max-w-5xl"
     >
-      <div className="space-y-10 max-w-5xl mx-auto">
+      <div className="flex items-center gap-4 mb-8">
+        <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-100">
+          <CheckCircle2 size={24} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-gray-900">Ride Settlement</h2>
+          <p className="text-sm text-gray-500 font-medium uppercase tracking-widest text-[10px]">Review & Finalize Financials</p>
+        </div>
+      </div>
+
+      <div className="space-y-10">
         {/* Top Stats: Duration Analysis */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
@@ -285,22 +261,6 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
               </div>
             </div>
 
-            {balance < 0 && incidentType === 'NONE' && (
-              <div className="bg-amber-50 border-2 border-amber-100 p-6 rounded-[2rem] flex gap-5 items-start animate-in slide-in-from-bottom-4">
-                <div className="p-3 bg-amber-100 text-amber-600 rounded-2xl shadow-sm">
-                  <AlertCircle size={24} />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-amber-900 uppercase tracking-widest mb-1">Business Policy Warning</p>
-                  <p className="text-xs text-amber-800 font-bold leading-relaxed">
-                    Early returns without a reported incident do not trigger automatic refunds. 
-                    <br /><br />
-                    To issue a refund, please select an <span className="underline">Incident Category</span> and provide justification.
-                  </p>
-                </div>
-              </div>
-            )}
-
             <div className="flex items-center gap-4 p-6 bg-gray-50 rounded-[2rem] border-2 border-gray-100 border-dashed">
               <div className="bg-black text-white w-12 h-12 rounded-xl flex items-center justify-center font-black shadow-lg">
                 {clientName.charAt(0)}
@@ -312,7 +272,29 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
             </div>
           </div>
         </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 w-full pt-6">
+          <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleComplete} 
+            disabled={loading || realDuration < 0}
+            className={cn(
+              "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base",
+              "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-xl shadow-emerald-100"
+            )}
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+            ) : (
+              <ShieldCheck size={20} />
+            )}
+            Confirm & Close Ride
+          </Button>
+        </div>
       </div>
-    </AppModal>
+    </BaseModal>
   );
 }

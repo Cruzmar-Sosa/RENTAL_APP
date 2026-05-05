@@ -1,7 +1,9 @@
+"use client";
+
 import { useState } from 'react';
-import { AppModal } from '@/components/ui/app-modal';
+import { BaseModal } from '@/components/ui/BaseModal';
 import { Button } from '@/components/ui/button';
-import { CreditCard, CheckCircle2, User, Bike, FileText, AlertCircle, Receipt, DollarSign, Wallet, ShieldCheck, ArrowRight } from 'lucide-react';
+import { CreditCard, User, FileText, AlertCircle, Receipt, DollarSign, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Payment } from '@/types';
 import { cn } from '@/lib/utils';
@@ -44,56 +46,26 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
   const badge = getPaymentBadge(payment.type);
   const isRefund = payment.type === 'REFUND';
 
-  const modalTitle = (
-    <div className="flex items-center gap-4">
-      <div className={cn(
-        "p-3 rounded-2xl shadow-lg",
-        isRefund ? "bg-emerald-600 text-white" : "bg-black text-white"
-      )}>
-        <CreditCard size={24} />
-      </div>
-      <div>
-        <h2 className="text-2xl font-black tracking-tight text-gray-900">Payment Review</h2>
-        <p className="text-sm text-gray-500 font-medium tracking-normal">Verification before processing ledger update</p>
-      </div>
-    </div>
-  );
-
-  const modalFooter = (
-    <div className="flex flex-col sm:flex-row gap-4 w-full">
-      <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
-        Cancel
-      </Button>
-      <Button 
-        onClick={handlePay} 
-        disabled={loading || payment.reservation?.status === 'CANCELLED'}
-        className={cn(
-          "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base shadow-xl",
-          payment.reservation?.status === 'CANCELLED' 
-            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-            : isRefund 
-              ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-emerald-100" 
-              : "bg-black text-white hover:bg-gray-800 hover:scale-[1.01] active:scale-95 shadow-gray-200"
-        )}
-      >
-        {loading ? (
-          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-        ) : (
-          <ShieldCheck size={20} />
-        )}
-        {isRefund ? 'Process Refund' : 'Confirm Payment'}
-      </Button>
-    </div>
-  );
-
   return (
-    <AppModal
+    <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title={modalTitle}
-      size="md"
-      footer={modalFooter}
+      showFooter={false}
+      className="max-w-2xl"
     >
+      <div className="flex items-center gap-4 mb-8">
+        <div className={cn(
+          "p-3 rounded-2xl shadow-lg",
+          isRefund ? "bg-emerald-600 text-white" : "bg-black text-white"
+        )}>
+          <CreditCard size={24} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-gray-900">Payment Review</h2>
+          <p className="text-sm text-gray-500 font-medium tracking-normal">Verification before processing ledger update</p>
+        </div>
+      </div>
+
       <div className="space-y-8">
         {/* Cancelled Warning */}
         {payment.reservation?.status === 'CANCELLED' && (
@@ -104,7 +76,7 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
             <div>
               <p className="text-[10px] font-black text-red-900 uppercase tracking-widest mb-1">Reservation Cancelled</p>
               <p className="text-xs text-red-800 font-bold leading-relaxed">
-                This payment is linked to a cancelled reservation and cannot be processed. The payment status should be updated to FAILED automatically by the system.
+                This payment is linked to a cancelled reservation and cannot be processed.
               </p>
             </div>
           </div>
@@ -205,7 +177,33 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
             </p>
           </div>
         </div>
+
+        {/* Action Footer */}
+        <div className="flex flex-col sm:flex-row gap-4 w-full pt-6">
+          <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handlePay} 
+            disabled={loading || payment.reservation?.status === 'CANCELLED'}
+            className={cn(
+              "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base shadow-xl",
+              payment.reservation?.status === 'CANCELLED' 
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : isRefund 
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-emerald-100" 
+                  : "bg-black text-white hover:bg-gray-800 hover:scale-[1.01] active:scale-95 shadow-gray-200"
+            )}
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+            ) : (
+              <ShieldCheck size={20} />
+            )}
+            {isRefund ? 'Process Refund' : 'Confirm Payment'}
+          </Button>
+        </div>
       </div>
-    </AppModal>
+    </BaseModal>
   );
 }

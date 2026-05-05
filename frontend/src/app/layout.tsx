@@ -16,6 +16,8 @@ import { Toaster } from "sonner";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Header } from "@/components/ui/header";
 
+import { ModalRoot } from "@/components/modals/ModalRoot";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,6 +39,7 @@ export default function RootLayout({
             </div>
           </main>
           <Toaster position="top-right" richColors />
+          <ModalRoot />
         </Providers>
       </body>
     </html>

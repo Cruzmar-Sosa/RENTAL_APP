@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { Modal } from './modal';
+import { BaseModal } from './BaseModal';
 import { AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from './button';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -28,35 +29,48 @@ export function ConfirmModal({
   isDestructive = true
 }: ConfirmModalProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      <div className="flex flex-col items-center text-center space-y-4 py-4">
+    <BaseModal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      showFooter={false}
+      className="max-w-md"
+    >
+      <div className="flex flex-col items-center text-center space-y-6 py-6">
         {isDestructive && (
-          <div className="bg-red-50 text-red-500 p-4 rounded-full mb-2">
-            <AlertTriangle size={32} />
+          <div className="bg-red-50 text-red-500 p-6 rounded-full shadow-inner">
+            <AlertTriangle size={40} />
           </div>
         )}
-        <p className="text-gray-500 text-sm max-w-sm">{message}</p>
+        <div className="space-y-2">
+           <h3 className="text-xl font-black text-gray-900">{title}</h3>
+           <p className="text-gray-500 text-sm font-medium leading-relaxed max-w-sm">{message}</p>
+        </div>
       </div>
       
-      <div className="flex gap-3 mt-6">
-        <button 
+      <div className="flex flex-col sm:flex-row gap-3 mt-8">
+        <Button 
+          variant="outline"
           onClick={onClose}
           disabled={isLoading}
-          className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition disabled:opacity-50"
+          className="h-14 rounded-2xl flex-1 border-2 font-bold"
         >
           {cancelText}
-        </button>
-        <button 
+        </Button>
+        <Button 
           onClick={onConfirm}
           disabled={isLoading}
           className={cn(
-            "flex-1 py-3 rounded-xl font-bold text-white transition disabled:opacity-50",
-            isDestructive ? "bg-red-500 hover:bg-red-600" : "bg-black hover:bg-gray-900"
+            "h-14 rounded-2xl flex-1 font-black text-white shadow-lg",
+            isDestructive 
+              ? "bg-red-600 hover:bg-red-700 shadow-red-100" 
+              : "bg-black hover:bg-gray-800 shadow-gray-200"
           )}
         >
-          {isLoading ? 'Processing...' : confirmText}
-        </button>
+          {isLoading ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+          ) : confirmText}
+        </Button>
       </div>
-    </Modal>
+    </BaseModal>
   );
 }

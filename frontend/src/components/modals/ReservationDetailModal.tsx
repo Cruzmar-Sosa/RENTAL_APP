@@ -1,5 +1,7 @@
+"use client";
+
 import { useState, useEffect } from 'react';
-import { AppModal } from '@/components/ui/app-modal';
+import { BaseModal } from '@/components/ui/BaseModal';
 import { Button } from '@/components/ui/button';
 import { 
   Bike, User, Clock, CreditCard, ShieldCheck, MapPin, 
@@ -25,6 +27,8 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
   useEffect(() => {
     if (reservationId && isOpen) {
       fetchDetail();
+    } else if (!isOpen) {
+      setReservation(null); // Clear when closing
     }
   }, [reservationId, isOpen]);
 
@@ -39,8 +43,6 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
       setLoading(false);
     }
   };
-
-  if (!reservation && !loading) return null;
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -67,54 +69,42 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
   const clientEmail = reservation?.user?.email || 'Walk-in Guest';
   const clientDoc = reservation?.guestDocument || reservation?.user?.documentNumber || 'N/A';
 
-  const modalTitle = reservation && (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
-      <div className="flex items-center gap-4">
-        <div className={cn("p-3 rounded-2xl shadow-lg", getStatusStyle(reservation.status))}>
-          <Receipt size={24} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-black tracking-tight text-gray-900">Master Reservation Record</h2>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Ref: {reservation.id.slice(0, 8)}...</span>
-            <div className="w-1 h-1 rounded-full bg-gray-300" />
-            <span className={cn(
-              "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest",
-              reservation.status === 'ACTIVE' ? 'bg-blue-100 text-blue-600' :
-              reservation.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-600' :
-              'bg-gray-100 text-gray-600'
-            )}>
-              {reservation.status}
-            </span>
-          </div>
-        </div>
-      </div>
-      <div className="text-right bg-gray-50 px-6 py-3 rounded-2xl border-2 border-gray-100">
-        <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Financial State</p>
-        <p className="text-2xl font-black text-black">${finalTotal.toFixed(2)}</p>
-      </div>
-    </div>
-  );
-
-  const modalFooter = (
-    <div className="flex justify-end w-full">
-      <Button 
-        onClick={onClose} 
-        className="h-14 px-10 rounded-2xl font-black bg-black text-white hover:scale-[1.02] active:scale-95 transition-all text-base"
-      >
-        Close View Record
-      </Button>
-    </div>
-  );
-
   return (
-    <AppModal
+    <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title={modalTitle}
-      size="xl"
-      footer={modalFooter}
+      showFooter={false}
+      className="max-w-6xl"
     >
+      {reservation && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full mb-10">
+          <div className="flex items-center gap-4">
+            <div className={cn("p-3 rounded-2xl shadow-lg", getStatusStyle(reservation.status))}>
+              <Receipt size={24} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black tracking-tight text-gray-900">Master Reservation Record</h2>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Ref: {reservation.id.slice(0, 8)}...</span>
+                <div className="w-1 h-1 rounded-full bg-gray-300" />
+                <span className={cn(
+                  "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest",
+                  reservation.status === 'ACTIVE' ? 'bg-blue-100 text-blue-600' :
+                  reservation.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-600' :
+                  'bg-gray-100 text-gray-600'
+                )}>
+                  {reservation.status}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right bg-gray-50 px-6 py-3 rounded-2xl border-2 border-gray-100">
+            <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Financial State</p>
+            <p className="text-2xl font-black text-black">${finalTotal.toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="p-20 flex flex-col items-center justify-center gap-6">
           <div className="relative">
@@ -126,7 +116,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
             <p className="text-sm text-gray-500 font-medium">Synchronizing latest ledger state...</p>
           </div>
         </div>
-      ) : reservation && (
+      ) : reservation ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Column 1: Client & Unit */}
           <div className="space-y-8">
@@ -334,7 +324,17 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
             </div>
           </div>
         </div>
-      )}
-    </AppModal>
+      ) : null}
+
+      {/* Unified Action Footer */}
+      <div className="flex justify-end w-full pt-8 mt-10 border-t-2 border-gray-50">
+        <Button 
+          onClick={onClose} 
+          className="h-14 px-10 rounded-2xl font-black bg-black text-white hover:scale-[1.02] active:scale-95 transition-all text-base shadow-xl"
+        >
+          Close View Record
+        </Button>
+      </div>
+    </BaseModal>
   );
 }
