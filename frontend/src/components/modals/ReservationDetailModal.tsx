@@ -13,6 +13,7 @@ import { api } from '@/lib/api';
 import { Reservation } from '@/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { formatNIDate } from '@/lib/dateUtils';
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
@@ -208,7 +209,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                     </div>
                     <div>
                       <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{item.label}</p>
-                      <p className="text-sm font-black text-gray-900">{new Date(item.time!).toLocaleString()}</p>
+                      <p className="text-sm font-black text-gray-900">{formatNIDate(item.time!)}</p>
                     </div>
                   </div>
                 ))}
@@ -289,7 +290,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                       <div className="flex justify-between items-end">
                         <div>
                           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Transaction Date</p>
-                          <p className="text-xs font-black text-gray-900">{new Date(p.createdAt).toLocaleDateString()}</p>
+                          <p className="text-xs font-black text-gray-900">{formatNIDate(p.createdAt)}</p>
                         </div>
                         <p className={cn(
                           "text-2xl font-black tracking-tight",

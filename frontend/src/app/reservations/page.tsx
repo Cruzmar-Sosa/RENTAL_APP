@@ -16,6 +16,7 @@ import { ReservationDetailModal } from '@/components/modals/ReservationDetailMod
 import { toast } from 'sonner';
 import { DataTablePro, DataTableColumn, DataTableFilter } from '@/components/ui/data-table-pro';
 import { useDataTable } from '@/hooks/useDataTable';
+import { formatNIDate } from '@/lib/dateUtils';
 
 export default function ReservationsAdminPage() {
   const { canRead, canView, isLoaded, canUpdate } = usePermissions();
@@ -154,7 +155,7 @@ export default function ReservationsAdminPage() {
       cell: (r) => (
         <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
           <Calendar size={14} className="text-gray-400" />
-          {new Date((r.actualStart || r.startTime) as string).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+          {formatNIDate((r.actualStart || r.startTime) as string)}
         </div>
       ) 
     },

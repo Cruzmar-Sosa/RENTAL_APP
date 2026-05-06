@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { BaseModal } from '@/components/ui/BaseModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, Clock, Calculator, AlertCircle, Timer, History, DollarSign, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock, Calculator, AlertCircle, Timer, History, DollarSign, ShieldCheck, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { Reservation } from '@/types';
 import { cn } from '@/lib/utils';
+import { formatNIDate, formatNIDateOnly, formatNITimeOnly } from '@/lib/dateUtils';
 
 interface SettlementModalProps {
   isOpen: boolean;
@@ -23,26 +24,49 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
   const [incidentCategory, setIncidentCategory] = useState('CUSTOMER_FAULT');
   const [incidentNotes, setIncidentNotes] = useState('');
 
-  // Initial duration calculation (Single Source of Truth)
-  const initialDuration = useMemo(() => {
-    if (!reservation) return { days: 0, hours: 0 };
-    const actualStart = new Date(reservation.actualStart || reservation.startTime);
-    const now = new Date();
-    const diffMs = now.getTime() - actualStart.getTime();
-    const diffHrsTotal = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
-    return {
-      days: Math.floor(diffHrsTotal / 24),
-      hours: diffHrsTotal % 24
-    };
-  }, [reservation]);
+  const [now, setNow] = useState(new Date());
+  const [isManualOverride, setIsManualOverride] = useState(false);
 
-  const [actualDays, setActualDays] = useState(initialDuration.days);
-  const [actualHours, setActualHours] = useState(initialDuration.hours);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 30000); // Update every 30s for responsiveness
+    return () => clearInterval(interval);
+  }, []);
+
+  // Duration calculation (Single Source of Truth)
+  const autoDuration = useMemo(() => {
+    if (!reservation) return { days: 0, hours: 0, total: 0 };
+    const actualStart = new Date(reservation.actualStart || reservation.startTime);
+    const diffMs = now.getTime() - actualStart.getTime();
+    const totalHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+    return {
+      days: Math.floor(totalHours / 24),
+      hours: totalHours % 24,
+      total: totalHours
+    };
+  }, [reservation, now]);
+
+  const [actualDays, setActualDays] = useState(autoDuration.days);
+  const [actualHours, setActualHours] = useState(autoDuration.hours);
+
+  // Sync autoDuration with state if no manual override
+  useEffect(() => {
+    if (!isManualOverride && isOpen) {
+      setActualDays(autoDuration.days);
+      setActualHours(autoDuration.hours);
+    }
+  }, [autoDuration, isManualOverride, isOpen]);
 
   if (!reservation) return null;
 
   const rate = reservation.ratePerHour || 50;
-  const estDuration = Math.ceil((new Date(reservation.endTime || '').getTime() - new Date(reservation.startTime).getTime()) / 3600000);
+  
+  // 6. Estimated Duration (Math.ceil as per requirement)
+  const estDuration = Math.ceil(
+    (new Date(reservation.endTime || '').getTime() - new Date(reservation.startTime).getTime()) / 3600000
+  );
+  
   const realDuration = (actualDays * 24) + actualHours;
   const diffDuration = realDuration - estDuration;
 
@@ -61,7 +85,10 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
     setLoading(true);
     try {
       const actualStart = new Date(reservation.actualStart || reservation.startTime);
-      const actualEnd = new Date(actualStart.getTime() + (realDuration * 60 * 60 * 1000));
+      // Use exact 'now' for the final settlement end time
+      const actualEnd = isManualOverride 
+        ? new Date(actualStart.getTime() + (realDuration * 60 * 60 * 1000))
+        : now;
 
       await onConfirm(reservation.id, 'complete', {
         balance,
@@ -121,6 +148,45 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
               </div>
             </div>
           ))}
+        </div>
+
+        {/* 8. Check-in Visual Block */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-emerald-50/50 border-2 border-emerald-100 p-6 rounded-[2rem] flex items-center gap-6 shadow-sm">
+            <div className="bg-emerald-600 text-white p-4 rounded-2xl shadow-lg">
+              <Zap size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">🕒 Check-in (Ride Start)</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-xl font-black text-gray-900">
+                  {formatNIDateOnly(reservation.actualStart || reservation.startTime)}
+                </p>
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
+                <p className="text-xl font-black text-emerald-600">
+                  {formatNITimeOnly(reservation.actualStart || reservation.startTime)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50/50 border-2 border-blue-100 p-6 rounded-[2rem] flex items-center gap-6 shadow-sm">
+            <div className="bg-blue-600 text-white p-4 rounded-2xl shadow-lg">
+              <Clock size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">🕒 Current Snapshot</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-xl font-black text-gray-900">
+                  {formatNIDateOnly(now)}
+                </p>
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-300" />
+                <p className="text-xl font-black text-blue-600">
+                  {formatNITimeOnly(now)}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -183,7 +249,10 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
                   <Input 
                     type="number" min="0" 
                     className="h-20 pt-8 rounded-2xl bg-white border-2 border-transparent focus:border-black font-black text-2xl transition-all shadow-sm"
-                    value={actualDays} onChange={e => setActualDays(parseInt(e.target.value) || 0)}
+                    value={actualDays} onChange={e => {
+                      setActualDays(parseInt(e.target.value) || 0);
+                      setIsManualOverride(true);
+                    }}
                   />
                 </div>
                 <div className="relative group">
@@ -191,7 +260,10 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
                   <Input 
                     type="number" min="0" max="23"
                     className="h-20 pt-8 rounded-2xl bg-white border-2 border-transparent focus:border-black font-black text-2xl transition-all shadow-sm"
-                    value={actualHours} onChange={e => setActualHours(parseInt(e.target.value) || 0)}
+                    value={actualHours} onChange={e => {
+                      setActualHours(parseInt(e.target.value) || 0);
+                      setIsManualOverride(true);
+                    }}
                   />
                 </div>
               </div>

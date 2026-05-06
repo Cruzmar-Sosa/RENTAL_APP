@@ -7,6 +7,7 @@ import { Bike, Clock, ShieldCheck, AlertTriangle, FileText, CheckCircle2 } from 
 import { toast } from 'sonner';
 import { Reservation } from '@/types';
 import { cn } from '@/lib/utils';
+import { calculateDurationHours } from '@/lib/dateUtils';
 
 interface CheckInModalProps {
   isOpen: boolean;
@@ -106,7 +107,7 @@ export function CheckInModal({ isOpen, onClose, reservation, onConfirm }: CheckI
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[10px] font-black text-gray-400 uppercase">Estimated Duration</span>
-                    <span className="font-bold text-gray-900">{Math.ceil((new Date(reservation.endTime || '').getTime() - new Date(reservation.startTime).getTime()) / 3600000)} Hours</span>
+                    <span className="font-bold text-gray-900">{calculateDurationHours(reservation.startTime, reservation.endTime || '')} Hours</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 group">
