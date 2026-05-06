@@ -44,7 +44,7 @@ export function BaseModal({
 
   return (
     <div 
-      className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       aria-modal="true"
       role="dialog"
     >
@@ -57,7 +57,7 @@ export function BaseModal({
           md:max-w-[900px]
           lg:max-w-[1100px]
           max-h-[90vh]
-          overflow-hidden
+          overflow-visible
           rounded-[2rem]
           bg-white
           shadow-2xl

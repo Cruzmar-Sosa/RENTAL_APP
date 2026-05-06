@@ -212,7 +212,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
                   <SelectTrigger className="h-16 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:border-black text-sm font-bold">
                     <SelectValue placeholder="No incidents recorded" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-2">
+                  <SelectContent className="rounded-2xl border-2 z-9999">
                     <SelectItem value="NONE" className="font-bold">None (Standard Return)</SelectItem>
                     <SelectItem value="MECHANICAL" className="font-bold">Mechanical Failure (Bike Issue)</SelectItem>
                     <SelectItem value="TECHNICAL" className="font-bold">Technical Error (App/System)</SelectItem>
