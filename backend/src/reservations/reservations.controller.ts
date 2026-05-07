@@ -12,7 +12,7 @@ export class ReservationsController {
 
   @Post()
   create(@Request() req: any, @Body() dto: CreateReservationDto) {
-    return this.reservationsService.create(req.user.sub, dto);
+    return this.reservationsService.create(req.user, dto);
   }
 
   @Get('my')
@@ -27,26 +27,22 @@ export class ReservationsController {
   }
 
   @Get(':id')
-  @Permissions('RESERVATIONS', 'READ')
-  findOne(@Param('id') id: string) {
-    return this.reservationsService.findOne(id);
+  findOne(@Request() req: any, @Param('id') id: string) {
+    return this.reservationsService.findOne(id, req.user);
   }
 
   @Patch(':id/start')
-  @Permissions('RESERVATIONS', 'UPDATE')
-  start(@Param('id') id: string, @Body() dto: StartRideDto) {
-    return this.reservationsService.start(id, dto);
+  start(@Request() req: any, @Param('id') id: string, @Body() dto: StartRideDto) {
+    return this.reservationsService.start(id, req.user, dto);
   }
 
   @Patch(':id/complete')
-  @Permissions('RESERVATIONS', 'UPDATE')
-  complete(@Param('id') id: string, @Body() dto: CompleteRideDto) {
-    return this.reservationsService.complete(id, dto);
+  complete(@Request() req: any, @Param('id') id: string, @Body() dto: CompleteRideDto) {
+    return this.reservationsService.complete(id, req.user, dto);
   }
 
   @Patch(':id/cancel')
-  @Permissions('RESERVATIONS', 'UPDATE')
-  cancel(@Param('id') id: string) {
-    return this.reservationsService.cancel(id);
+  cancel(@Request() req: any, @Param('id') id: string) {
+    return this.reservationsService.cancel(id, req.user);
   }
 }

@@ -13,9 +13,10 @@ interface PaymentModalProps {
   onClose: () => void;
   payment: Payment | null;
   onConfirm: (id: string) => Promise<void>;
+  mode?: 'admin' | 'user';
 }
 
-export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentModalProps) {
+export function PaymentModal({ isOpen, onClose, payment, onConfirm, mode = 'admin' }: PaymentModalProps) {
   const [loading, setLoading] = useState(false);
 
   if (!payment) return null;
@@ -26,7 +27,7 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
       await onConfirm(payment.id);
       onClose();
     } catch (error) {
-      toast.error('Payment confirmation failed.');
+      toast.error('Payment processing failed.');
     } finally {
       setLoading(false);
     }
@@ -46,6 +47,10 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
   const badge = getPaymentBadge(payment.type);
   const isRefund = payment.type === 'REFUND';
 
+  // Users cannot process refunds, they can only process payments.
+  // Admins can process refunds.
+  const canProcess = mode === 'admin' || !isRefund;
+
   return (
     <BaseModal
       isOpen={isOpen}
@@ -61,8 +66,12 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
           <CreditCard size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-gray-900">Payment Review</h2>
-          <p className="text-sm text-gray-500 font-medium tracking-normal">Verification before processing ledger update</p>
+          <h2 className="text-2xl font-black tracking-tight text-gray-900">
+            {isRefund ? (mode === 'admin' ? 'Process Refund' : 'Refund Receipt') : 'Payment Review'}
+          </h2>
+          <p className="text-sm text-gray-500 font-medium tracking-normal">
+            {mode === 'admin' ? 'Verification before processing ledger update' : 'Review your transaction details'}
+          </p>
         </div>
       </div>
 
@@ -76,7 +85,8 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
             <div>
               <p className="text-[10px] font-black text-red-900 uppercase tracking-widest mb-1">Reservation Cancelled</p>
               <p className="text-xs text-red-800 font-bold leading-relaxed">
-                This payment is linked to a cancelled reservation and cannot be processed.
+                This payment is linked to a cancelled reservation. 
+                {mode === 'admin' ? ' Cannot be processed.' : ' Please contact support if you have questions.'}
               </p>
             </div>
           </div>
@@ -141,7 +151,7 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
 
             <div className="space-y-3 pt-6 border-t border-white/10">
               <div className="flex justify-between items-center text-sm">
-                <span className="font-bold text-white/50">Base Payment</span>
+                <span className="font-bold text-white/50">Base {isRefund ? 'Refund' : 'Payment'}</span>
                 <span className="font-black">${payment.amount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
@@ -171,7 +181,7 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
                 : payment.type === 'DEPOSIT'
                   ? 'Security deposit for fleet protection. Held until safe return.'
                   : isRefund 
-                    ? 'Processing this will return the specified amount to the customers original payment method.'
+                    ? 'Processing this will return the specified amount to the original payment method.'
                     : 'Standard activation charge for the bicycle reservation.'
               }
             </p>
@@ -181,27 +191,30 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm }: PaymentMod
         {/* Action Footer */}
         <div className="flex flex-col sm:flex-row gap-4 w-full pt-6">
           <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
-            Cancel
+            {canProcess && payment.status !== 'PAID' ? 'Cancel' : 'Close'}
           </Button>
-          <Button 
-            onClick={handlePay} 
-            disabled={loading || payment.reservation?.status === 'CANCELLED'}
-            className={cn(
-              "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base shadow-xl",
-              payment.reservation?.status === 'CANCELLED' 
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : isRefund 
-                  ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-emerald-100" 
-                  : "bg-black text-white hover:bg-gray-800 hover:scale-[1.01] active:scale-95 shadow-gray-200"
-            )}
-          >
-            {loading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-            ) : (
-              <ShieldCheck size={20} />
-            )}
-            {isRefund ? 'Process Refund' : 'Confirm Payment'}
-          </Button>
+          
+          {canProcess && payment.status !== 'PAID' && (
+            <Button 
+              onClick={handlePay} 
+              disabled={loading || payment.reservation?.status === 'CANCELLED'}
+              className={cn(
+                "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base shadow-xl",
+                payment.reservation?.status === 'CANCELLED' 
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : isRefund 
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-emerald-100" 
+                    : "bg-black text-white hover:bg-gray-800 hover:scale-[1.01] active:scale-95 shadow-gray-200"
+              )}
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+              ) : (
+                <ShieldCheck size={20} />
+              )}
+              {isRefund ? 'Process Refund' : 'Confirm Payment'}
+            </Button>
+          )}
         </div>
       </div>
     </BaseModal>

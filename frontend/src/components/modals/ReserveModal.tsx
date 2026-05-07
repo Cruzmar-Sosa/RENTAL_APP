@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { BaseModal } from '@/components/ui/BaseModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { User as UserType } from '@/types';
 import { cn } from '@/lib/utils';
-import { useEffect } from 'react';
 
 interface ReserveModalProps {
   isOpen: boolean;
@@ -18,10 +17,20 @@ interface ReserveModalProps {
   bikeId: string | null;
   onConfirm: (payload: any) => Promise<void>;
   user: any; // Logged in user
+  mode?: 'admin' | 'user';
 }
 
-export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: ReserveModalProps) {
+export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }: ReserveModalProps) {
+  const currentMode = mode || (user?.role === 'ADMIN' ? 'admin' : 'user');
+  
+  // Start on step 2 for users, since step 1 is Identity (Admin only)
   const [step, setStep] = useState(1);
+  useEffect(() => {
+    if (isOpen) {
+      setStep(currentMode === 'admin' ? 1 : 2);
+    }
+  }, [isOpen, currentMode]);
+
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<UserType[]>([]);
@@ -36,7 +45,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
   const [guestDoc, setGuestDoc] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
 
-  // Schedule Fields (Initialized directly since component unmounts on close)
+  // Schedule Fields
   const now = new Date();
   const [startDate, setStartDate] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
   const [startTime, setStartTime] = useState(now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
@@ -53,13 +62,12 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
 
   const [paymentOption, setPaymentOption] = useState<'DEPOSIT' | 'FULL' | 'LATER'>('DEPOSIT');
 
-  // Search logic (Debounced)
+  // Search logic
   useEffect(() => {
     if (searchQuery.length < 2) {
       setSearchResults([]);
       return;
     }
-
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
@@ -71,7 +79,6 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
         setSearching(false);
       }
     }, 300);
-
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -95,6 +102,9 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
       const startDateTime = new Date(`${startDate}T${startTime}`);
       const endDateTime = new Date(startDateTime.getTime() + totalHours * 60 * 60 * 1000);
 
+      const isSelf = currentMode === 'user' || (identityMode === 'REGISTERED' && !targetUser);
+      const effectiveUserId = isSelf ? user?.id : targetUser?.id;
+
       const payload = {
         bikeId,
         startTime: startDateTime.toISOString(),
@@ -103,9 +113,9 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
         paymentOption,
         extras: extras.filter(e => e.selected).map(e => ({ name: e.name, price: e.price })),
         extrasTotal,
-        targetUserId: identityMode === 'REGISTERED' ? targetUser?.id : null,
-        clientName: identityMode === 'REGISTERED' ? targetUser?.name : guestName,
-        clientPhone: identityMode === 'REGISTERED' ? targetUser?.phone : guestPhone,
+        targetUserId: effectiveUserId,
+        clientName: isSelf ? user?.name : (identityMode === 'REGISTERED' ? targetUser?.name : guestName),
+        clientPhone: isSelf ? user?.phone : (identityMode === 'REGISTERED' ? targetUser?.phone : guestPhone),
         guestName: identityMode === 'GUEST' ? guestName : null,
         guestDocument: identityMode === 'GUEST' ? guestDoc : null,
         guestPhone: identityMode === 'GUEST' ? guestPhone : null,
@@ -119,6 +129,8 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
       setLoading(false);
     }
   };
+
+  const minStep = currentMode === 'admin' ? 1 : 2;
 
   return (
     <BaseModal
@@ -143,21 +155,24 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
           </div>
         </div>
         <div className="flex gap-2">
-          {[1, 2, 3, 4].map((s) => (
-            <div 
-              key={s} 
-              className={cn(
-                "h-2 flex-1 rounded-full transition-all duration-500",
-                s <= step ? 'bg-black' : 'bg-gray-100'
-              )} 
-            />
-          ))}
+          {[1, 2, 3, 4].map((s) => {
+            if (currentMode === 'user' && s === 1) return null; // Hide step 1 dot for users
+            return (
+              <div 
+                key={s} 
+                className={cn(
+                  "h-2 flex-1 rounded-full transition-all duration-500",
+                  s <= step ? 'bg-black' : 'bg-gray-100'
+                )} 
+              />
+            )
+          })}
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto w-full">
-        {/* Step 1: Identity */}
-        {step === 1 && (
+        {/* Step 1: Identity (Admin Only) */}
+        {step === 1 && currentMode === 'admin' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
@@ -322,7 +337,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
           </div>
         )}
 
-        {/* Step 3: Extras */}
+        {/* Step 3: Extras & Pricing */}
         {step === 3 && (
           <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="flex items-center gap-4">
@@ -338,19 +353,33 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
             <div className="bg-white p-10 rounded-[3rem] border-2 border-gray-100 shadow-xl shadow-gray-100/50">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">Rate per Hour (USD)</label>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">
+                    {currentMode === 'admin' ? 'Rate per Hour (USD)' : 'Rate Applied'}
+                  </label>
                   <p className="text-sm text-gray-500 font-bold">Base rate for this specific rental</p>
                 </div>
                 <div className="flex items-center gap-6">
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-gray-400">$</span>
-                    <Input 
-                      type="number" 
-                      value={ratePerHour} 
-                      onChange={e => setRatePerHour(parseInt(e.target.value) || 0)} 
-                      className="h-20 w-40 pl-12 rounded-[1.5rem] bg-gray-50 text-3xl font-black border-none focus:ring-4 focus:ring-black/5 transition-all text-center" 
-                    />
-                  </div>
+                  {currentMode === 'admin' ? (
+                    <div className="relative">
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-gray-400">$</span>
+                      <Input 
+                        type="number" 
+                        value={ratePerHour} 
+                        onChange={e => setRatePerHour(parseInt(e.target.value) || 0)} 
+                        className="h-20 w-40 pl-12 rounded-[1.5rem] bg-gray-50 text-3xl font-black border-none focus:ring-4 focus:ring-black/5 transition-all text-center" 
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-gray-400">$</span>
+                      <Input 
+                        type="number" 
+                        value={ratePerHour} 
+                        readOnly
+                        className="h-20 w-40 pl-12 rounded-[1.5rem] bg-gray-50 text-3xl font-black border-none focus:ring-0 transition-all text-center text-gray-500 cursor-not-allowed" 
+                      />
+                    </div>
+                  )}
                   <div className="h-12 w-0.5 bg-gray-100 hidden md:block" />
                   <div className="bg-gray-50 px-8 py-4 rounded-[1.5rem] border border-gray-100">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Base Cost</p>
@@ -405,7 +434,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              <div className="bg-black text-white p-10 rounded-[3.5rem] space-y-10 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative overflow-hidden group">
+              <div className="bg-black text-white p-10 rounded-[3.5rem] space-y-8 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative overflow-hidden group">
                 <div className="absolute top-[-20%] right-[-10%] p-10 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity rotate-12">
                   <CreditCard size={300} />
                 </div>
@@ -415,7 +444,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
                   <p className="text-6xl font-black tracking-tighter leading-none">${totalCost.toFixed(2)}</p>
                 </div>
 
-                <div className="space-y-6 pt-10 border-t border-white/10 relative">
+                <div className="space-y-4 pt-6 border-t border-white/10 relative">
                   <div className="flex justify-between items-center text-base">
                     <span className="font-bold text-white/40">Base Rental ({totalHours}h)</span>
                     <span className="font-black">${baseCost.toFixed(2)}</span>
@@ -428,15 +457,33 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
                   ))}
                 </div>
 
-                <div className="pt-10 relative">
-                  <div className="bg-white/5 backdrop-blur-md p-6 rounded-[2rem] flex items-center justify-between border border-white/10">
-                    <div>
-                      <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Security Deposit (20%)</p>
-                      <p className="text-3xl font-black text-white">${depositCost.toFixed(2)}</p>
+                <div className="pt-6 border-t border-white/10 relative space-y-4">
+                  {paymentOption === 'DEPOSIT' && (
+                    <div className="flex justify-between items-center text-base">
+                      <span className="font-bold text-white/40">Security Deposit (20%)</span>
+                      <span className="font-black text-emerald-400">${depositCost.toFixed(2)}</span>
                     </div>
-                    <div className="p-4 bg-emerald-500/20 text-emerald-400 rounded-2xl shadow-inner">
-                      <ShieldCheck size={32} />
+                  )}
+                  {paymentOption === 'FULL' && (
+                    <div className="flex justify-between items-center text-base">
+                      <span className="font-bold text-white/40">Amount Due Now</span>
+                      <span className="font-black text-emerald-400">${totalCost.toFixed(2)}</span>
                     </div>
+                  )}
+                  {paymentOption === 'LATER' && (
+                    <div className="flex justify-between items-center text-base">
+                      <span className="font-bold text-white/40">Pay Now</span>
+                      <span className="font-black text-emerald-400">$0.00</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center text-base pt-4 border-t border-white/10">
+                    <span className="font-bold text-white/80">
+                      {paymentOption === 'FULL' ? 'Remaining Balance' : 'Remaining at Check-in'}
+                    </span>
+                    <span className="font-black text-2xl">
+                      ${paymentOption === 'FULL' ? '0.00' : paymentOption === 'DEPOSIT' ? (totalCost - depositCost).toFixed(2) : totalCost.toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -498,10 +545,10 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user }: Reser
         <div className="flex flex-col sm:flex-row gap-6 w-full mt-12 pt-8 border-t-2 border-gray-50">
           <Button 
             variant="ghost" 
-            onClick={step > 1 ? handlePrev : onClose} 
+            onClick={step > minStep ? handlePrev : onClose} 
             className="h-20 rounded-[1.5rem] flex-1 font-black gap-3 text-lg hover:bg-gray-100 transition-all uppercase tracking-widest text-gray-400 hover:text-black"
           >
-            {step > 1 ? <><ChevronLeft size={24} /> Back</> : 'Cancel'}
+            {step > minStep ? <><ChevronLeft size={24} /> Back</> : 'Cancel'}
           </Button>
           
           {step < 4 ? (

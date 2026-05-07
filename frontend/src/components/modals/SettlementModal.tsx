@@ -5,7 +5,7 @@ import { BaseModal } from '@/components/ui/BaseModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, Clock, Calculator, AlertCircle, Timer, History, DollarSign, ShieldCheck, Zap } from 'lucide-react';
+import { CheckCircle2, Clock, Calculator, AlertCircle, Timer, History, DollarSign, ShieldCheck, Zap, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Reservation } from '@/types';
 import { cn } from '@/lib/utils';
@@ -15,10 +15,11 @@ interface SettlementModalProps {
   isOpen: boolean;
   onClose: () => void;
   reservation: Reservation | null;
-  onConfirm: (id: string, action: string, data?: any) => Promise<void>;
+  onConfirm?: (id: string, action: string, data?: any) => Promise<void>;
+  mode?: 'admin' | 'user';
 }
 
-export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: SettlementModalProps) {
+export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode = 'admin' }: SettlementModalProps) {
   const [loading, setLoading] = useState(false);
   const [incidentType, setIncidentType] = useState('NONE');
   const [incidentCategory, setIncidentCategory] = useState('CUSTOMER_FAULT');
@@ -38,7 +39,9 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
   const autoDuration = useMemo(() => {
     if (!reservation) return { days: 0, hours: 0, total: 0 };
     const actualStart = new Date(reservation.actualStart || reservation.startTime);
-    const diffMs = now.getTime() - actualStart.getTime();
+    // If it's already completed, use actualEnd
+    const endRef = reservation.actualEnd ? new Date(reservation.actualEnd) : now;
+    const diffMs = endRef.getTime() - actualStart.getTime();
     const totalHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
     return {
       days: Math.floor(totalHours / 24),
@@ -62,7 +65,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
 
   const rate = reservation.ratePerHour || 50;
   
-  // 6. Estimated Duration (Math.ceil as per requirement)
+  // Estimated Duration (Math.ceil as per requirement)
   const estDuration = Math.ceil(
     (new Date(reservation.endTime || '').getTime() - new Date(reservation.startTime).getTime()) / 3600000
   );
@@ -70,10 +73,14 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
   const realDuration = (actualDays * 24) + actualHours;
   const diffDuration = realDuration - estDuration;
 
-  // Real Cost Calculation
-  const realCost = (realDuration * rate) + (reservation.extrasTotal || 0);
+  // For User Mode, we do not compute new real cost if it's already completed
+  const realCost = reservation.priceActual !== null && reservation.priceActual !== undefined 
+    ? reservation.priceActual 
+    : (realDuration * rate) + (reservation.extrasTotal || 0);
+
   const isCompanyFault = incidentType !== 'NONE' && incidentCategory === 'COMPANY_FAULT';
-  const effectiveRealCost = isCompanyFault ? 0 : realCost;
+  // If admin overrides to company fault, cost is 0. If user mode, they can't override.
+  const effectiveRealCost = (mode === 'admin' && isCompanyFault) ? 0 : realCost;
   
   const amountPaid = reservation.payments
     ?.filter(p => p.status === 'PAID')
@@ -81,26 +88,35 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
   
   const balance = effectiveRealCost - amountPaid;
 
-  const handleComplete = async () => {
+  const handleAction = async () => {
     setLoading(true);
     try {
-      const actualStart = new Date(reservation.actualStart || reservation.startTime);
-      // Use exact 'now' for the final settlement end time
-      const actualEnd = isManualOverride 
-        ? new Date(actualStart.getTime() + (realDuration * 60 * 60 * 1000))
-        : now;
+      if (mode === 'admin') {
+        const actualStart = new Date(reservation.actualStart || reservation.startTime);
+        const actualEnd = isManualOverride 
+          ? new Date(actualStart.getTime() + (realDuration * 60 * 60 * 1000))
+          : now;
 
-      await onConfirm(reservation.id, 'complete', {
-        balance,
-        priceActual: (incidentType !== 'NONE' && incidentCategory === 'COMPANY_FAULT') ? 0 : realCost,
-        actualEnd: actualEnd.toISOString(),
-        incidentType: incidentType !== 'NONE' ? incidentType : null,
-        incidentCategory: incidentType !== 'NONE' ? incidentCategory : null,
-        incidentNotes: incidentType !== 'NONE' ? incidentNotes : null,
-      });
+        await onConfirm?.(reservation.id, 'complete', {
+          priceActual: effectiveRealCost,
+          actualEnd: actualEnd.toISOString(),
+          incidentType: incidentType !== 'NONE' ? incidentType : null,
+          incidentCategory: incidentType !== 'NONE' ? incidentCategory : null,
+          incidentNotes: incidentType !== 'NONE' ? incidentNotes : null,
+        });
+      } else {
+        // User Mode: Submitting an incident report
+        if (incidentType !== 'NONE') {
+          await onConfirm?.(reservation.id, 'report_incident', {
+            incidentType,
+            incidentNotes
+          });
+          toast.success("Incident reported successfully");
+        }
+      }
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to complete ride.');
+      toast.error(error.response?.data?.message || 'Action failed.');
     } finally {
       setLoading(false);
     }
@@ -117,11 +133,15 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
     >
       <div className="flex items-center gap-4 mb-8">
         <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-100">
-          <CheckCircle2 size={24} />
+          {mode === 'admin' ? <CheckCircle2 size={24} /> : <Info size={24} />}
         </div>
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-gray-900">Ride Settlement</h2>
-          <p className="text-sm text-gray-500 font-medium uppercase tracking-widest text-[10px]">Review & Finalize Financials</p>
+          <h2 className="text-2xl font-black tracking-tight text-gray-900">
+            {mode === 'admin' ? 'Ride Settlement' : 'Ride Details & Timeline'}
+          </h2>
+          <p className="text-sm text-gray-500 font-medium uppercase tracking-widest text-[10px]">
+            {mode === 'admin' ? 'Review & Finalize Financials' : 'View usage and report incidents'}
+          </p>
         </div>
       </div>
 
@@ -150,7 +170,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
           ))}
         </div>
 
-        {/* 8. Check-in Visual Block */}
+        {/* Check-in Visual Block */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-emerald-50/50 border-2 border-emerald-100 p-6 rounded-[2rem] flex items-center gap-6 shadow-sm">
             <div className="bg-emerald-600 text-white p-4 rounded-2xl shadow-lg">
@@ -175,14 +195,14 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
               <Clock size={24} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">🕒 Current Snapshot</p>
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">🕒 {reservation.actualEnd ? 'Check-out' : 'Current Snapshot'}</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-xl font-black text-gray-900">
-                  {formatNIDateOnly(now)}
+                  {formatNIDateOnly(reservation.actualEnd || now)}
                 </p>
                 <div className="w-1.5 h-1.5 rounded-full bg-blue-300" />
                 <p className="text-xl font-black text-blue-600">
-                  {formatNITimeOnly(now)}
+                  {formatNITimeOnly(reservation.actualEnd || now)}
                 </p>
               </div>
             </div>
@@ -205,7 +225,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
               <div className="grid grid-cols-2 gap-y-8 relative">
                 <div>
                   <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Total Actual Cost</p>
-                  <p className="text-3xl font-black">${realCost.toFixed(2)}</p>
+                  <p className="text-3xl font-black">${effectiveRealCost.toFixed(2)}</p>
                   <p className="text-[10px] text-white/30 font-medium mt-1">Reflects {realDuration}h usage</p>
                 </div>
                 <div>
@@ -237,40 +257,42 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
               </div>
             </div>
 
-            {/* Adjust Duration */}
-            <div className="bg-gray-50 p-8 rounded-[2.5rem] border-2 border-gray-100 space-y-6">
-              <div className="flex items-center gap-3">
-                <Timer size={18} className="text-blue-500" />
-                <h4 className="text-sm font-black text-gray-900 uppercase">Override billable time</h4>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="relative group">
-                  <label className="absolute left-5 top-3 text-[9px] font-black text-gray-400 uppercase tracking-widest group-focus-within:text-black transition-colors">Days</label>
-                  <Input 
-                    type="number" min="0" 
-                    className="h-20 pt-8 rounded-2xl bg-white border-2 border-transparent focus:border-black font-black text-2xl transition-all shadow-sm"
-                    value={actualDays} onChange={e => {
-                      setActualDays(parseInt(e.target.value) || 0);
-                      setIsManualOverride(true);
-                    }}
-                  />
+            {/* Adjust Duration (Admin Only) */}
+            {mode === 'admin' && (
+              <div className="bg-gray-50 p-8 rounded-[2.5rem] border-2 border-gray-100 space-y-6">
+                <div className="flex items-center gap-3">
+                  <Timer size={18} className="text-blue-500" />
+                  <h4 className="text-sm font-black text-gray-900 uppercase">Override billable time</h4>
                 </div>
-                <div className="relative group">
-                  <label className="absolute left-5 top-3 text-[9px] font-black text-gray-400 uppercase tracking-widest group-focus-within:text-black transition-colors">Hours</label>
-                  <Input 
-                    type="number" min="0" max="23"
-                    className="h-20 pt-8 rounded-2xl bg-white border-2 border-transparent focus:border-black font-black text-2xl transition-all shadow-sm"
-                    value={actualHours} onChange={e => {
-                      setActualHours(parseInt(e.target.value) || 0);
-                      setIsManualOverride(true);
-                    }}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="relative group">
+                    <label className="absolute left-5 top-3 text-[9px] font-black text-gray-400 uppercase tracking-widest group-focus-within:text-black transition-colors">Days</label>
+                    <Input 
+                      type="number" min="0" 
+                      className="h-20 pt-8 rounded-2xl bg-white border-2 border-transparent focus:border-black font-black text-2xl transition-all shadow-sm"
+                      value={actualDays} onChange={e => {
+                        setActualDays(parseInt(e.target.value) || 0);
+                        setIsManualOverride(true);
+                      }}
+                    />
+                  </div>
+                  <div className="relative group">
+                    <label className="absolute left-5 top-3 text-[9px] font-black text-gray-400 uppercase tracking-widest group-focus-within:text-black transition-colors">Hours</label>
+                    <Input 
+                      type="number" min="0" max="23"
+                      className="h-20 pt-8 rounded-2xl bg-white border-2 border-transparent focus:border-black font-black text-2xl transition-all shadow-sm"
+                      value={actualHours} onChange={e => {
+                        setActualHours(parseInt(e.target.value) || 0);
+                        setIsManualOverride(true);
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Right Column: Incidents & Validation */}
+          {/* Right Column: Incidents & Notes */}
           <div className="space-y-8">
             <div className="flex items-center gap-3 ml-2">
               <History size={20} className="text-blue-600" />
@@ -280,7 +302,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
             <div className="space-y-6 bg-white p-8 rounded-[2.5rem] border-2 border-gray-100 shadow-sm">
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Reporting Category</label>
-                <Select value={incidentType} onValueChange={(val) => setIncidentType(val || 'NONE')}>
+                <Select value={incidentType} onValueChange={(val) => setIncidentType(val || 'NONE')} disabled={reservation.status === 'COMPLETED'}>
                   <SelectTrigger className="h-16 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:border-black text-sm font-bold">
                     <SelectValue placeholder="No incidents recorded" />
                   </SelectTrigger>
@@ -293,7 +315,8 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
                 </Select>
               </div>
 
-              {incidentType !== 'NONE' && (
+              {/* Only admins can set responsibility */}
+              {incidentType !== 'NONE' && mode === 'admin' && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Responsibility</label>
                   <div className="grid grid-cols-2 gap-3 p-1.5 bg-gray-50 rounded-2xl">
@@ -322,13 +345,14 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Justification / Detail</label>
                 <textarea
-                  placeholder={incidentType === 'NONE' ? "Optional notes about the return..." : "Please describe the incident in detail to justify balance adjustments or refunds..."}
+                  placeholder={incidentType === 'NONE' ? "Optional notes about the return..." : "Please describe the incident in detail..."}
                   className={cn(
                     "w-full h-40 p-6 rounded-[2rem] border-2 outline-none transition-all text-sm font-medium resize-none",
                     incidentType !== 'NONE' ? "bg-blue-50/50 border-blue-200 focus:border-blue-500" : "bg-gray-50 border-gray-100 focus:border-black"
                   )}
                   value={incidentNotes}
                   onChange={e => setIncidentNotes(e.target.value)}
+                  disabled={reservation.status === 'COMPLETED'}
                 />
               </div>
             </div>
@@ -348,23 +372,42 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm }: Set
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 w-full pt-6">
           <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
-            Cancel
+            Close
           </Button>
-          <Button 
-            onClick={handleComplete} 
-            disabled={loading || realDuration < 0}
-            className={cn(
-              "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base",
-              "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-xl shadow-emerald-100"
-            )}
-          >
-            {loading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-            ) : (
-              <ShieldCheck size={20} />
-            )}
-            Confirm & Close Ride
-          </Button>
+          {(mode === 'admin' && reservation.status === 'ACTIVE') && (
+            <Button 
+              onClick={handleAction} 
+              disabled={loading || realDuration < 0}
+              className={cn(
+                "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base",
+                "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-xl shadow-emerald-100"
+              )}
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+              ) : (
+                <ShieldCheck size={20} />
+              )}
+              Confirm & Close Ride
+            </Button>
+          )}
+          {(mode === 'user' && incidentType !== 'NONE' && reservation.status !== 'COMPLETED') && (
+            <Button 
+              onClick={handleAction} 
+              disabled={loading || incidentNotes.length < 5}
+              className={cn(
+                "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base",
+                "bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.01] active:scale-95 shadow-xl shadow-blue-100"
+              )}
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+              ) : (
+                <AlertCircle size={20} />
+              )}
+              Submit Incident Report
+            </Button>
+          )}
         </div>
       </div>
     </BaseModal>

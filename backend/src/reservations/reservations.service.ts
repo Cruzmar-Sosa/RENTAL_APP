@@ -1,45 +1,34 @@
-import { Injectable, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, Logger, ForbiddenException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReservationDto, StartRideDto, CompleteRideDto } from './dto/create-reservation.dto';
 import { TrackingGateway } from '../tracking/tracking.gateway';
+import { ReservationLifecycleService } from './reservation-lifecycle.service';
 
 @Injectable()
 export class ReservationsService {
   private readonly logger = new Logger(ReservationsService.name);
-  private readonly DEFAULT_RATE = 50; // USD per hour
 
   constructor(
     private prisma: PrismaService,
-    private trackingGateway: TrackingGateway
+    private trackingGateway: TrackingGateway,
+    private lifecycle: ReservationLifecycleService
   ) {}
 
   // ─────────────────────────────────────────────
-  // FINANCIAL UTILITY (Guard 2)
+  // CREATE RESERVATION
   // ─────────────────────────────────────────────
-  
-  private getFinancialState(reservation: any) {
-    const paid = reservation.payments
-      ?.filter((p: any) => p.status === 'PAID')
-      .reduce((acc: number, p: any) => acc + (p.type === 'REFUND' ? -p.amount : p.amount), 0) || 0;
-    
-    const pending = reservation.payments
-      ?.filter((p: any) => p.status === 'PENDING')
-      .reduce((acc: number, p: any) => acc + p.amount, 0) || 0;
-
-    const total = reservation.priceActual || reservation.priceEstimated || 0;
-
-    return { paid, pending, total, balance: total - paid };
-  }
-
-  // ─────────────────────────────────────────────
-  // CREATE RESERVATION (Guard 8: Snapshot confirmed)
-  // ─────────────────────────────────────────────
-
-  async create(callerUserId: string, dto: CreateReservationDto) {
+  async create(caller: any, dto: CreateReservationDto) {
     try {
-      this.logger.log(`[CREATE] Attempting reservation for Bike ${dto.bikeId} by User ${callerUserId}`);
+      this.logger.log(`[CREATE] Attempting reservation for Bike ${dto.bikeId} by User ${caller.sub}`);
       
+      const effectiveUserId = dto.targetUserId || caller.sub;
+      
+      // Strict Ownership: If targetUserId differs from caller, caller must be ADMIN
+      if (effectiveUserId !== caller.sub && caller.role !== 'ADMIN') {
+        throw new ForbiddenException('You do not have permission to create a reservation for another user.');
+      }
+
       const bike = await this.prisma.bike.findUnique({ where: { id: dto.bikeId } });
       if (!bike || bike.status !== 'AVAILABLE') {
         throw new BadRequestException('Bike is not available or does not exist');
@@ -48,8 +37,6 @@ export class ReservationsService {
         throw new BadRequestException('Bike battery too low to be reserved');
       }
 
-      const effectiveUserId = dto.targetUserId || callerUserId;
-
       if (dto.documentType && dto.documentNumber && !dto.guestName) {
         await this.prisma.user.update({
           where: { id: effectiveUserId },
@@ -57,7 +44,8 @@ export class ReservationsService {
         });
       }
 
-      const rate = dto.ratePerHour ?? this.DEFAULT_RATE;
+      // Role check for ratePerHour
+      const rate = (caller.role === 'ADMIN' && dto.ratePerHour !== undefined) ? dto.ratePerHour : 50;
       const startDate = dto.startTime ? new Date(dto.startTime) : new Date();
       const endDate = dto.endTime ? new Date(dto.endTime) : new Date(startDate.getTime() + 2 * 3600000);
       const totalHours = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / 3600000));
@@ -85,7 +73,6 @@ export class ReservationsService {
             startTime: startDate,
             endTime: endDate,
             expiresAt,
-            // Snapshot persistent data (Guard 8)
             clientName: dto.clientName || null,
             clientPhone: dto.clientPhone || null,
             guestName: dto.guestName || null,
@@ -111,7 +98,7 @@ export class ReservationsService {
 
       return reservation;
     } catch (error) {
-      if (error instanceof BadRequestException) throw error;
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
       this.logger.error('[CREATE] Failed', error);
       throw new InternalServerErrorException('Failed to create reservation');
     }
@@ -120,20 +107,20 @@ export class ReservationsService {
   // ─────────────────────────────────────────────
   // START RIDE (CHECK-IN)
   // ─────────────────────────────────────────────
-
-  async start(id: string, dto?: StartRideDto) {
+  async start(id: string, caller: any, dto?: StartRideDto) {
     try {
       this.logger.log(`[START] Starting ride for Reservation ${id}`);
       
+      // USER CANNOT start rides
+      if (caller.role !== 'ADMIN') {
+         throw new ForbiddenException('Only administrators can initiate Check-in and Start Ride.');
+      }
+
       const reservation = await this.prisma.reservation.findUnique({ where: { id } });
       if (!reservation) throw new BadRequestException('Reservation not found');
 
-      if (reservation.status === 'PENDING') {
-        throw new BadRequestException('Cannot start a PENDING reservation. Payment is required first.');
-      }
-      if (reservation.status !== 'CONFIRMED') {
-        throw new BadRequestException(`Cannot start reservation with status ${reservation.status}`);
-      }
+      // Valid Transitions
+      this.lifecycle.validateTransition(reservation.status, 'ACTIVE');
 
       const bike = await this.prisma.bike.findUnique({ where: { id: reservation.bikeId } });
       if (bike && bike.status === 'IN_USE') {
@@ -163,7 +150,7 @@ export class ReservationsService {
 
       return updatedReservation;
     } catch (error) {
-      if (error instanceof BadRequestException) throw error;
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
       this.logger.error('[START] Failed', error);
       throw new InternalServerErrorException('Failed to start reservation');
     }
@@ -172,10 +159,14 @@ export class ReservationsService {
   // ─────────────────────────────────────────────
   // COMPLETE RIDE (SETTLEMENT)
   // ─────────────────────────────────────────────
-
-  async complete(id: string, dto?: CompleteRideDto) {
+  async complete(id: string, caller: any, dto?: CompleteRideDto) {
     try {
       this.logger.log(`[SETTLEMENT] Initiating for Reservation ${id}`);
+
+      // USER CANNOT complete rides
+      if (caller.role !== 'ADMIN') {
+         throw new ForbiddenException('Only administrators can perform ride settlement.');
+      }
 
       const reservation = await this.prisma.reservation.findUnique({
         where: { id },
@@ -184,15 +175,9 @@ export class ReservationsService {
 
       if (!reservation) throw new BadRequestException('Reservation not found');
       
-      // Guard 3: Prevent duplicate settlement
-      if (reservation.status === 'COMPLETED') {
-        throw new BadRequestException('Reservation is already completed and settled');
-      }
-      if (reservation.status !== 'ACTIVE') {
-        throw new BadRequestException('Only active reservations can be completed');
-      }
+      // Valid Transitions
+      this.lifecycle.validateTransition(reservation.status, 'COMPLETED');
 
-      // Guard 1: Prevent duplicate BALANCE payments
       const existingBalance = await this.prisma.payment.findFirst({
         where: { reservationId: id, type: 'BALANCE' }
       });
@@ -201,27 +186,18 @@ export class ReservationsService {
       }
 
       const actualEnd = dto?.actualEnd ? new Date(dto.actualEnd) : new Date();
-      const actualStart = reservation.actualStart || reservation.startTime;
-      const rate = reservation.ratePerHour ?? this.DEFAULT_RATE;
-
-      // Logic for Refund / Override
       const isCompanyFault = dto?.incidentCategory === 'COMPANY_FAULT';
-      const isAdminOverride = dto?.priceActual === 0; // Or we can check days/hours in future
       
-      let priceActual = dto?.priceActual;
-      if (priceActual === undefined) {
-        const hours = Math.max(1, Math.ceil((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60)));
-        priceActual = (hours * rate) + (reservation.extrasTotal ?? 0);
-      }
+      const overridePrice = dto?.priceActual;
+      const isAdminOverride = overridePrice !== undefined;
 
-      // If company fault or admin override, total cost is 0
-      if (isCompanyFault || isAdminOverride) {
-        priceActual = 0;
-      }
-
-      // Use Financial Utility (Guard 2)
-      const resWithActual = { ...reservation, priceActual };
-      const { balance } = this.getFinancialState(resWithActual);
+      const { balance, priceActual } = this.lifecycle.calculateFinancials(
+        reservation, 
+        actualEnd, 
+        isAdminOverride, 
+        overridePrice,
+        isCompanyFault
+      );
 
       const payments: any[] = [];
 
@@ -234,7 +210,6 @@ export class ReservationsService {
         });
         this.logger.log(`[SETTLEMENT] Generated BALANCE payment of $${balance} for Res ${id}`);
       } else if (balance < 0) {
-        // Guard 7: Refund only with incident or admin override
         if (isCompanyFault || isAdminOverride || (dto?.incidentType && dto?.incidentType !== 'NONE')) {
           payments.push({
             amount: Math.abs(balance),
@@ -242,9 +217,7 @@ export class ReservationsService {
             status: 'PAID',
             type: 'REFUND',
           });
-          this.logger.log(`[SETTLEMENT] Generated REFUND of $${Math.abs(balance)} for Res ${id} due to ${dto?.incidentCategory || dto?.incidentType || 'Manual Override'}`);
-        } else {
-          this.logger.log(`[SETTLEMENT] Early finish without incident for Res ${id}. No refund generated.`);
+          this.logger.log(`[SETTLEMENT] Generated REFUND of $${Math.abs(balance)} for Res ${id}`);
         }
       }
 
@@ -272,7 +245,7 @@ export class ReservationsService {
 
       return updatedReservation;
     } catch (error) {
-      if (error instanceof BadRequestException) throw error;
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
       this.logger.error('[SETTLEMENT] Failed', error);
       throw new InternalServerErrorException('Failed to complete reservation');
     }
@@ -281,15 +254,14 @@ export class ReservationsService {
   // ─────────────────────────────────────────────
   // CANCEL
   // ─────────────────────────────────────────────
-
-  async cancel(id: string) {
+  async cancel(id: string, caller: any) {
     try {
       this.logger.log(`[CANCEL] Cancelling Reservation ${id}`);
       const reservation = await this.prisma.reservation.findUnique({ where: { id } });
       if (!reservation) throw new BadRequestException('Reservation not found');
-      if (reservation.status === 'COMPLETED' || reservation.status === 'CANCELLED') {
-        throw new BadRequestException('Cannot cancel this reservation');
-      }
+      
+      this.lifecycle.validateOwnership(reservation.userId, caller.sub, caller.role);
+      this.lifecycle.validateTransition(reservation.status, 'CANCELLED');
 
       const [updatedReservation] = await this.prisma.$transaction([
         this.prisma.reservation.update({
@@ -308,7 +280,7 @@ export class ReservationsService {
 
       return updatedReservation;
     } catch (error) {
-      if (error instanceof BadRequestException) throw error;
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
       this.logger.error('[CANCEL] Failed', error);
       throw new InternalServerErrorException('Failed to cancel reservation');
     }
@@ -317,8 +289,7 @@ export class ReservationsService {
   // ─────────────────────────────────────────────
   // FIND
   // ─────────────────────────────────────────────
-
-  async findOne(id: string) {
+  async findOne(id: string, caller: any) {
     try {
       const reservation = await this.prisma.reservation.findUnique({
         where: { id },
@@ -329,9 +300,12 @@ export class ReservationsService {
         },
       });
       if (!reservation) throw new BadRequestException('Reservation not found');
+      
+      this.lifecycle.validateOwnership(reservation.userId, caller.sub, caller.role);
+
       return reservation;
     } catch (error) {
-      if (error instanceof BadRequestException) throw error;
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
       this.logger.error('[findOne]', error);
       throw new InternalServerErrorException('Failed to fetch reservation');
     }
@@ -369,7 +343,6 @@ export class ReservationsService {
   // ─────────────────────────────────────────────
   // CRON: Auto-expire PENDING reservations
   // ─────────────────────────────────────────────
-
   @Cron(CronExpression.EVERY_MINUTE)
   async handleExpiredReservations() {
     try {
@@ -401,7 +374,6 @@ export class ReservationsService {
           }),
         ]);
         
-        // Real-time notification (Guard 4)
         this.trackingGateway.server.emit('reservation_expired', {
           bikeId: res.bikeId,
           reservationId: res.id
