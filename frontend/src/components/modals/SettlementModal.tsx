@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { BaseModal } from '@/components/ui/BaseModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,9 +88,13 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
   
   const balance = effectiveRealCost - amountPaid;
 
+  const isSubmitting = useRef(false);
+
   const handleAction = async () => {
-    if (loading) return;
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
     setLoading(true);
+
     try {
       if (mode === 'admin') {
         const actualStart = new Date(reservation.actualStart || reservation.startTime);
@@ -115,6 +119,10 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
         }
       }
       onClose();
+    } catch (error) {
+      console.error('[SettlementModal] Error during action:', error);
+      // Re-enable on error so user can try again if it was a temporary network failure
+      isSubmitting.current = false;
     } finally {
       setLoading(false);
     }

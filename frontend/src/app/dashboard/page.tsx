@@ -338,6 +338,7 @@ export default function DashboardPage() {
         isOpen={settlementModalOpen} 
         onClose={() => setSettlementModalOpen(false)} 
         reservation={selectedReservation} 
+        mode={user?.role === 'ADMIN' ? 'admin' : 'user'}
         onConfirm={executeSettlement} 
       />
     </div>

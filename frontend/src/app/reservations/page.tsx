@@ -19,7 +19,7 @@ import { useDataTable } from '@/hooks/useDataTable';
 import { formatNIDate } from '@/lib/dateUtils';
 
 export default function ReservationsAdminPage() {
-  const { canRead, canView, isLoaded, canUpdate } = usePermissions();
+  const { canRead, canView, isLoaded, canUpdate, isAdmin, user } = usePermissions();
   const queryClient = useQueryClient();
   
   // Selection States
@@ -179,45 +179,57 @@ export default function ReservationsAdminPage() {
       exportable: false, 
       cell: (r) => { 
         return (
-          <div className="flex items-center justify-end gap-2">
-            <button 
-              onClick={() => handleOpenDetail(r.id)} 
-              className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-xl transition"
-              title="View Details"
-            >
-              <Eye size={18} />
-            </button>
-            
-            {canUpdate('RESERVATIONS') && (
-              <>
-                {r.status === 'CONFIRMED' && (
-                  <button 
-                    onClick={() => handleOpenCheckIn(r)} 
-                    className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition"
-                  >
-                    Start Ride
-                  </button>
-                )}
-                {r.status === 'ACTIVE' && (
-                  <button 
-                    onClick={() => handleOpenSettlement(r)} 
-                    className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition"
-                  >
-                    Settlement
-                  </button>
-                )}
-                {(r.status === 'CONFIRMED' || r.status === 'PENDING') && (
-                  <button 
-                    onClick={() => { setSelectedResId(r.id); setCancelConfirmOpen(true); }} 
-                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
-                    title="Cancel"
-                  >
-                    <Ban size={18} />
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+            <div className="flex items-center justify-end gap-2">
+              <button 
+                onClick={() => handleOpenDetail(r.id)} 
+                className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-xl transition"
+                title="View Details"
+              >
+                <Eye size={18} />
+              </button>
+              
+              {/* ADMIN OPERATIONS */}
+              {isAdmin && (
+                <>
+                  {r.status === 'CONFIRMED' && (
+                    <button 
+                      onClick={() => handleOpenCheckIn(r)} 
+                      className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition"
+                    >
+                      Start Ride
+                    </button>
+                  )}
+                  {r.status === 'ACTIVE' && (
+                    <button 
+                      onClick={() => handleOpenSettlement(r)} 
+                      className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition"
+                    >
+                      Settlement
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* USER OPERATIONS (Self-service) */}
+              {!isAdmin && r.status === 'ACTIVE' && r.userId === user?.sub && (
+                <button 
+                  onClick={() => handleOpenSettlement(r)} 
+                  className="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-600 transition"
+                >
+                  Report Incident
+                </button>
+              )}
+
+              {(canUpdate('RESERVATIONS') || r.userId === user?.sub) && (r.status === 'CONFIRMED' || r.status === 'PENDING') && (
+                <button 
+                  onClick={() => { setSelectedResId(r.id); setCancelConfirmOpen(true); }} 
+                  className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
+                  title="Cancel"
+                >
+                  <Ban size={18} />
+                </button>
+              )}
+            </div>
         ); 
       } 
     },
@@ -305,6 +317,7 @@ export default function ReservationsAdminPage() {
         isOpen={settlementModalOpen} 
         onClose={() => setSettlementModalOpen(false)} 
         reservation={activeReservation} 
+        mode={isAdmin ? 'admin' : 'user'}
         onConfirm={async (id, action, data) => {
           await actionMutation.mutateAsync({ id, type: action as any, data });
         }}
