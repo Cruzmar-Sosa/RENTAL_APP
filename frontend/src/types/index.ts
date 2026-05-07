@@ -62,7 +62,11 @@ export interface Reservation {
   termsAccepted?: boolean;
   // Settlement
   incidentType?: string;
+  incidentCategory?: string;
   incidentNotes?: string;
+  incidentReportedAt?: string;
+  incidentReportedById?: string;
+  incidentReportedBy?: Pick<User, 'email' | 'name'>;
   // Relations
   user?: Pick<User, 'id' | 'email' | 'name' | 'phone' | 'documentType' | 'documentNumber'>;
   bike?: Bike;

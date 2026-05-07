@@ -111,3 +111,13 @@ export class CompleteRideDto {
   @IsString()
   incidentNotes?: string;
 }
+
+export class ReportIncidentDto {
+  @IsString()
+  @IsNotEmpty()
+  incidentType: string;
+
+  @IsOptional()
+  @IsString()
+  incidentNotes?: string;
+}

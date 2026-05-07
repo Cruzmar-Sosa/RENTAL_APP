@@ -252,6 +252,43 @@ export class ReservationsService {
   }
 
   // ─────────────────────────────────────────────
+  // REPORT INCIDENT
+  // ─────────────────────────────────────────────
+  async reportIncident(id: string, caller: any, dto: any) {
+    try {
+      this.logger.log(`[REPORT INCIDENT] for Reservation ${id} by User ${caller.sub}`);
+
+      const reservation = await this.prisma.reservation.findUnique({
+        where: { id },
+      });
+
+      if (!reservation) throw new BadRequestException('Reservation not found');
+      
+      this.lifecycle.validateOwnership(reservation.userId, caller.sub, caller.role);
+
+      if (reservation.status === 'COMPLETED') {
+        throw new BadRequestException('Cannot report an incident on a completed ride');
+      }
+
+      const updatedReservation = await this.prisma.reservation.update({
+        where: { id },
+        data: {
+          incidentType: dto.incidentType,
+          incidentNotes: dto.incidentNotes || null,
+          incidentReportedAt: new Date(),
+          incidentReportedById: caller.sub,
+        },
+      });
+
+      return updatedReservation;
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
+      this.logger.error('[REPORT INCIDENT] Failed', error);
+      throw new InternalServerErrorException('Failed to report incident');
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // CANCEL
   // ─────────────────────────────────────────────
   async cancel(id: string, caller: any) {
@@ -297,6 +334,7 @@ export class ReservationsService {
           user: { select: { id: true, email: true, name: true, phone: true, documentType: true, documentNumber: true } },
           bike: true,
           payments: { orderBy: { createdAt: 'asc' } },
+          incidentReportedBy: { select: { name: true, email: true } },
         },
       });
       if (!reservation) throw new BadRequestException('Reservation not found');
@@ -315,7 +353,7 @@ export class ReservationsService {
     try {
       return this.prisma.reservation.findMany({
         where: { userId },
-        include: { bike: true, payments: true },
+        include: { bike: true, payments: true, incidentReportedBy: { select: { name: true, email: true } } },
         orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
@@ -333,6 +371,7 @@ export class ReservationsService {
           user: { select: { id: true, email: true, name: true, phone: true, documentNumber: true, documentType: true } },
           bike: true,
           payments: true,
+          incidentReportedBy: { select: { name: true, email: true } },
         },
         orderBy: { createdAt: 'desc' },
       });

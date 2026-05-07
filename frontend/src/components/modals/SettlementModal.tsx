@@ -21,9 +21,9 @@ interface SettlementModalProps {
 
 export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode = 'admin' }: SettlementModalProps) {
   const [loading, setLoading] = useState(false);
-  const [incidentType, setIncidentType] = useState('NONE');
-  const [incidentCategory, setIncidentCategory] = useState('CUSTOMER_FAULT');
-  const [incidentNotes, setIncidentNotes] = useState('');
+  const [incidentType, setIncidentType] = useState(reservation?.incidentType || 'NONE');
+  const [incidentCategory, setIncidentCategory] = useState(reservation?.incidentCategory || 'CUSTOMER_FAULT');
+  const [incidentNotes, setIncidentNotes] = useState(reservation?.incidentNotes || '');
 
   const [now, setNow] = useState(new Date());
   const [isManualOverride, setIsManualOverride] = useState(false);
@@ -89,6 +89,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
   const balance = effectiveRealCost - amountPaid;
 
   const handleAction = async () => {
+    if (loading) return;
     setLoading(true);
     try {
       if (mode === 'admin') {
@@ -107,16 +108,13 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
       } else {
         // User Mode: Submitting an incident report
         if (incidentType !== 'NONE') {
-          await onConfirm?.(reservation.id, 'report_incident', {
+          await onConfirm?.(reservation.id, 'report-incident', {
             incidentType,
             incidentNotes
           });
-          toast.success("Incident reported successfully");
         }
       }
       onClose();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Action failed.');
     } finally {
       setLoading(false);
     }
@@ -300,6 +298,18 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
             </div>
 
             <div className="space-y-6 bg-white p-8 rounded-[2.5rem] border-2 border-gray-100 shadow-sm">
+              {reservation.incidentReportedAt && (
+                <div className="bg-orange-50 text-orange-800 p-4 rounded-2xl flex items-start gap-3 border border-orange-100">
+                  <AlertCircle size={20} className="shrink-0 text-orange-500 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-sm">Incident Reported</p>
+                    <p className="text-xs font-medium text-orange-600/80 mt-1">
+                      By: {(reservation as any).incidentReportedBy?.name || (reservation as any).incidentReportedBy?.email || 'Unknown User'} <br/>
+                      On: {formatNIDate(reservation.incidentReportedAt)}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Reporting Category</label>
                 <Select value={incidentType} onValueChange={(val) => setIncidentType(val || 'NONE')} disabled={reservation.status === 'COMPLETED'}>

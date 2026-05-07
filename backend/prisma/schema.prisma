@@ -21,6 +21,7 @@ model User {
   documentNumber String?
   role         Role             @default(USER)
   reservations Reservation[]
+  reportedIncidents Reservation[] @relation("IncidentReporter")
   permissions  UserPermission[]
   payments     Payment[]
   createdAt    DateTime         @default(now())
@@ -167,6 +168,9 @@ model Reservation {
   incidentType   String?                              // MECHANICAL | TECHNICAL | OTHER
   incidentCategory String?                            // COMPANY_FAULT | CUSTOMER_FAULT
   incidentNotes  String?                              // free-text
+  incidentReportedAt DateTime?
+  incidentReportedById String?
+  incidentReportedBy User?           @relation("IncidentReporter", fields: [incidentReportedById], references: [id])
 
   payments       Payment[]
   createdAt      DateTime          @default(now())

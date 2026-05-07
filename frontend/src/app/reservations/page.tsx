@@ -60,12 +60,12 @@ export default function ReservationsAdminPage() {
   }, [isLoaded, refetch]);
 
   const actionMutation = useMutation({
-    mutationFn: async ({ id, type, data }: {id: string, type: 'start' | 'complete' | 'cancel', data?: any}) => {
+    mutationFn: async ({ id, type, data }: {id: string, type: 'start' | 'complete' | 'cancel' | 'report-incident', data?: any}) => {
       return api.patch(`/reservations/${id}/${type}`, data);
     },
     onSuccess: (_, v) => { 
       queryClient.invalidateQueries({ queryKey: ['reservations'] }); 
-      toast.success(`Reservation ${v.type}ed successfully`); 
+      toast.success(`Action '${v.type.replace('-', ' ')}' executed successfully`); 
       setCancelConfirmOpen(false);
     },
     onError: (err: any) => { toast.error(err.response?.data?.message || 'Action failed'); }
@@ -306,7 +306,7 @@ export default function ReservationsAdminPage() {
         onClose={() => setSettlementModalOpen(false)} 
         reservation={activeReservation} 
         onConfirm={async (id, action, data) => {
-          await actionMutation.mutateAsync({ id, type: 'complete', data });
+          await actionMutation.mutateAsync({ id, type: action as any, data });
         }}
       />
 

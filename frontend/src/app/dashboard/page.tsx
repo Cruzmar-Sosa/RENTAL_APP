@@ -105,11 +105,11 @@ export default function DashboardPage() {
   const executeSettlement = async (id: string, action: string, data?: any) => {
     try {
       await api.patch(`/reservations/${id}/${action}`, data);
-      toast.success('Ride completed and settled!');
+      toast.success(action === 'report-incident' ? 'Incident reported successfully' : 'Ride completed and settled!');
       refetch();
       refetchReservations();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to complete ride.');
+      toast.error(error.response?.data?.message || 'Action failed.');
     }
   };
 

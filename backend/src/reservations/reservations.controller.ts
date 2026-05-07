@@ -3,7 +3,7 @@ import { ReservationsService } from './reservations.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
-import { CreateReservationDto, StartRideDto, CompleteRideDto } from './dto/create-reservation.dto';
+import { CreateReservationDto, StartRideDto, CompleteRideDto, ReportIncidentDto } from './dto/create-reservation.dto';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('reservations')
@@ -39,6 +39,11 @@ export class ReservationsController {
   @Patch(':id/complete')
   complete(@Request() req: any, @Param('id') id: string, @Body() dto: CompleteRideDto) {
     return this.reservationsService.complete(id, req.user, dto);
+  }
+
+  @Patch(':id/report-incident')
+  reportIncident(@Request() req: any, @Param('id') id: string, @Body() dto: ReportIncidentDto) {
+    return this.reservationsService.reportIncident(id, req.user, dto);
   }
 
   @Patch(':id/cancel')
