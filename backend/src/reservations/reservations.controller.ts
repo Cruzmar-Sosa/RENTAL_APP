@@ -22,8 +22,8 @@ export class ReservationsController {
 
   @Get()
   @Permissions('RESERVATIONS', 'READ')
-  findAll() {
-    return this.reservationsService.findAll();
+  findAll(@Request() req: any) {
+    return this.reservationsService.findAll(req.user);
   }
 
   @Get(':id')

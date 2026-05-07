@@ -31,10 +31,9 @@ export default function ReservationsAdminPage() {
   const [activeReservation, setActiveReservation] = useState<any>(null);
 
   const { data: reservations, isLoading, refetch } = useQuery({
-    queryKey: ['admin-reservations-detailed', canRead('RESERVATIONS')],
+    queryKey: ['reservations', canRead('RESERVATIONS')],
     queryFn: async () => {
-      const endpoint = canRead('RESERVATIONS') ? '/reservations' : '/reservations/my';
-      return (await api.get(endpoint)).data;
+      return (await api.get('/reservations')).data;
     },
     enabled: isLoaded
   });
@@ -65,7 +64,7 @@ export default function ReservationsAdminPage() {
       return api.patch(`/reservations/${id}/${type}`, data);
     },
     onSuccess: (_, v) => { 
-      queryClient.invalidateQueries({ queryKey: ['admin-reservations-detailed'] }); 
+      queryClient.invalidateQueries({ queryKey: ['reservations'] }); 
       toast.success(`Reservation ${v.type}ed successfully`); 
       setCancelConfirmOpen(false);
     },
@@ -256,13 +255,13 @@ export default function ReservationsAdminPage() {
       </div>
 
       <DataTablePro 
-        title="Fleet Reservations" 
-        subtitle="Manage end-to-end rental lifecycle: creation, check-in, and settlement." 
+        title={canUpdate('RESERVATIONS') ? "Fleet Reservations" : "My Reservations"} 
+        subtitle={canUpdate('RESERVATIONS') ? "Manage end-to-end rental lifecycle: creation, check-in, and settlement." : "View and manage your personal reservations."} 
         data={reservations || []} 
         columns={columns} 
         filters={filters} 
         exportEnabled 
-        exportTitle="Fleet Reservations" 
+        exportTitle={canUpdate('RESERVATIONS') ? "Fleet Reservations" : "My Reservations"} 
         exportFileName="reservations" 
         searchTerm={table.searchTerm} 
         onSearchChange={table.setSearchTerm} 

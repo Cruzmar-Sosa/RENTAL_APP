@@ -22,8 +22,7 @@ export default function PaymentsPage() {
   const { data: payments, isLoading } = useQuery({
     queryKey: ['payments', canRead('PAYMENTS')],
     queryFn: async () => {
-      const endpoint = canRead('PAYMENTS') ? '/payments' : '/payments/my';
-      return (await api.get(endpoint)).data;
+      return (await api.get('/payments')).data;
     },
     enabled: isLoaded
   });
@@ -183,13 +182,13 @@ export default function PaymentsPage() {
       </div>
 
       <DataTablePro
-        title="Financial Ledger"
-        subtitle="Detailed audit log of all transactions, including rentals, deposits, and refunds."
+        title={canUpdate('PAYMENTS') ? "Financial Ledger" : "My Payments"}
+        subtitle={canUpdate('PAYMENTS') ? "Detailed audit log of all transactions, including rentals, deposits, and refunds." : "View your transaction history."}
         data={payments || []}
         columns={columns}
         filters={filters}
         exportEnabled
-        exportTitle="Financial Ledger"
+        exportTitle={canUpdate('PAYMENTS') ? "Financial Ledger" : "My Payments"}
         exportFileName="payments"
         searchTerm={table.searchTerm}
         onSearchChange={table.setSearchTerm}

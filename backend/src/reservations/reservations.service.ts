@@ -324,9 +324,11 @@ export class ReservationsService {
     }
   }
 
-  async findAll() {
+  async findAll(caller: any) {
     try {
+      const where = caller.role === 'ADMIN' ? {} : { userId: caller.sub };
       return this.prisma.reservation.findMany({
+        where,
         include: {
           user: { select: { id: true, email: true, name: true, phone: true, documentNumber: true, documentType: true } },
           bike: true,
