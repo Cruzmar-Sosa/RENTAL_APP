@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { User as UserType } from '@/types';
 import { cn } from '@/lib/utils';
+import { formatCurrency, safeCurrency } from '@/lib/financial';
 
 interface ReserveModalProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }:
   }, [searchQuery]);
 
   // Calculations
-  const extrasTotal = useMemo(() => extras.filter(e => e.selected).reduce((acc, curr) => acc + curr.price, 0), [extras]);
+  const extrasTotal = useMemo(() => extras.filter(e => e.selected).reduce((acc, curr) => acc + safeCurrency(curr.price), 0), [extras]);
   const totalHours = useMemo(() => (days * 24) + hours, [days, hours]);
   const baseCost = useMemo(() => totalHours * ratePerHour, [totalHours, ratePerHour]);
   const totalCost = useMemo(() => baseCost + extrasTotal, [baseCost, extrasTotal]);
@@ -383,7 +384,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }:
                   <div className="h-12 w-0.5 bg-gray-100 hidden md:block" />
                   <div className="bg-gray-50 px-8 py-4 rounded-[1.5rem] border border-gray-100">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Base Cost</p>
-                    <p className="text-2xl font-black text-black">${baseCost.toFixed(2)}</p>
+                    <p className="text-2xl font-black text-black">${formatCurrency(baseCost)}</p>
                   </div>
                 </div>
               </div>
@@ -411,7 +412,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }:
                     </div>
                     <div>
                       <p className={cn("font-black text-lg transition-all", extra.selected ? 'text-emerald-900' : 'text-gray-900')}>{extra.name}</p>
-                      <p className={cn("text-2xl font-black mt-1", extra.selected ? 'text-emerald-600' : 'text-gray-400 group-hover:text-black')}>+${extra.price}</p>
+                      <p className={cn("text-2xl font-black mt-1", extra.selected ? 'text-emerald-600' : 'text-gray-400 group-hover:text-black')}>+${formatCurrency(extra.price)}</p>
                     </div>
                   </div>
                 ))}
@@ -441,18 +442,18 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }:
                 
                 <div className="space-y-2 relative">
                   <p className="text-[10px] font-black uppercase text-white/40 tracking-[0.3em]">Estimated Total</p>
-                  <p className="text-6xl font-black tracking-tighter leading-none">${totalCost.toFixed(2)}</p>
+                  <p className="text-6xl font-black tracking-tighter leading-none">${formatCurrency(totalCost)}</p>
                 </div>
 
                 <div className="space-y-4 pt-6 border-t border-white/10 relative">
                   <div className="flex justify-between items-center text-base">
                     <span className="font-bold text-white/40">Base Rental ({totalHours}h)</span>
-                    <span className="font-black">${baseCost.toFixed(2)}</span>
+                    <span className="font-black">${formatCurrency(baseCost)}</span>
                   </div>
                   {extras.filter(e => e.selected).map(e => (
                     <div key={e.id} className="flex justify-between items-center text-base">
                       <span className="font-bold text-white/40">{e.name}</span>
-                      <span className="font-black">+${e.price.toFixed(2)}</span>
+                      <span className="font-black">+${formatCurrency(e.price)}</span>
                     </div>
                   ))}
                 </div>
@@ -461,13 +462,13 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }:
                   {paymentOption === 'DEPOSIT' && (
                     <div className="flex justify-between items-center text-base">
                       <span className="font-bold text-white/40">Security Deposit (20%)</span>
-                      <span className="font-black text-emerald-400">${depositCost.toFixed(2)}</span>
+                      <span className="font-black text-emerald-400">${formatCurrency(depositCost)}</span>
                     </div>
                   )}
                   {paymentOption === 'FULL' && (
                     <div className="flex justify-between items-center text-base">
                       <span className="font-bold text-white/40">Amount Due Now</span>
-                      <span className="font-black text-emerald-400">${totalCost.toFixed(2)}</span>
+                      <span className="font-black text-emerald-400">${formatCurrency(totalCost)}</span>
                     </div>
                   )}
                   {paymentOption === 'LATER' && (
@@ -482,7 +483,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }:
                       {paymentOption === 'FULL' ? 'Remaining Balance' : 'Remaining at Check-in'}
                     </span>
                     <span className="font-black text-2xl">
-                      ${paymentOption === 'FULL' ? '0.00' : paymentOption === 'DEPOSIT' ? (totalCost - depositCost).toFixed(2) : totalCost.toFixed(2)}
+                      ${paymentOption === 'FULL' ? '0.00' : paymentOption === 'DEPOSIT' ? formatCurrency(totalCost - depositCost) : formatCurrency(totalCost)}
                     </span>
                   </div>
                 </div>
@@ -516,7 +517,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }:
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-black text-2xl text-gray-900">${opt.amount.toFixed(2)}</p>
+                        <p className="font-black text-2xl text-gray-900">${formatCurrency(opt.amount)}</p>
                         {paymentOption === opt.id && <div className="h-2 w-full bg-black rounded-full mt-2 animate-in slide-in-from-right-full duration-500" />}
                       </div>
                     </div>

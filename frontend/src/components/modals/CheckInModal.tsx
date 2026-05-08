@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Reservation } from '@/types';
 import { cn } from '@/lib/utils';
 import { calculateDurationHours } from '@/lib/dateUtils';
+import { formatCurrency } from '@/lib/financial';
 
 interface CheckInModalProps {
   isOpen: boolean;
@@ -116,7 +117,7 @@ export function CheckInModal({ isOpen, onClose, reservation, onConfirm }: CheckI
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[10px] font-black text-gray-400 uppercase">Active Rate</span>
-                    <span className="font-bold text-gray-900">${reservation.ratePerHour}/hr</span>
+                    <span className="font-bold text-gray-900">${formatCurrency(reservation.ratePerHour)}/hr</span>
                   </div>
                 </div>
               </div>
@@ -126,7 +127,7 @@ export function CheckInModal({ isOpen, onClose, reservation, onConfirm }: CheckI
               <div className="flex justify-between items-end">
                 <div>
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Estimated</span>
-                  <p className="text-3xl font-black text-black">${reservation.priceEstimated?.toFixed(2)}</p>
+                  <p className="text-3xl font-black text-black">${formatCurrency(reservation.priceEstimated)}</p>
                 </div>
                 <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">
                   <FileText size={20} />

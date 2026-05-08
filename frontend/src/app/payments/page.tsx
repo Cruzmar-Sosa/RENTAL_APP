@@ -12,6 +12,8 @@ import { useState } from 'react';
 import { PaymentModal } from '@/components/modals/PaymentModal';
 import { DataTablePro, DataTableColumn, DataTableFilter } from '@/components/ui/data-table-pro';
 import { useDataTable } from '@/hooks/useDataTable';
+import { normalizePayments } from '@/lib/financial-adapters';
+import { formatCurrency, calculateTotal } from '@/lib/financial';
 
 export default function PaymentsPage() {
   const { canRead, canView, isLoaded, canUpdate } = usePermissions();
@@ -22,7 +24,8 @@ export default function PaymentsPage() {
   const { data: payments, isLoading } = useQuery({
     queryKey: ['payments', canRead('PAYMENTS')],
     queryFn: async () => {
-      return (await api.get('/payments')).data;
+      const response = await api.get('/payments');
+      return normalizePayments(response.data);
     },
     enabled: isLoaded
   });
@@ -35,7 +38,7 @@ export default function PaymentsPage() {
 
   const table = useDataTable({ data: payments || [], searchableKeys: ['id', 'reservationId', 'userId', 'user.email', 'user.name'], defaultPageSize: 10, storageKey: 'payments' });
 
-  const totalSpent = payments?.filter((p: any) => p.status === 'PAID').reduce((acc: number, p: any) => acc + p.amount, 0)?.toFixed(2) || '0.00';
+  const totalSpent = formatCurrency(calculateTotal(payments?.filter((p: any) => p.status === 'PAID'), (p) => p.amount));
   const pendingCount = payments?.filter((p: any) => p.status === 'PENDING').length || 0;
 
   const columns: DataTableColumn<any>[] = [
@@ -109,7 +112,7 @@ export default function PaymentsPage() {
       cell: (p) => (
         <div className="text-right leading-none">
           <p className={cn("text-xl font-black", p.type === 'REFUND' ? 'text-blue-600' : 'text-gray-900')}>
-            {p.type === 'REFUND' ? '-' : ''}${p.amount.toFixed(2)}
+            {p.type === 'REFUND' ? '-' : ''}${formatCurrency(p.amount)}
           </p>
           <span className="text-[10px] font-bold text-gray-400 uppercase">USD</span>
         </div>

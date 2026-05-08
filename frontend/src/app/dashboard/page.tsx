@@ -14,6 +14,8 @@ import { io } from 'socket.io-client';
 import { ReserveModal } from '@/components/modals/ReserveModal';
 import { SettlementModal } from '@/components/modals/SettlementModal';
 import { CheckInModal } from '@/components/modals/CheckInModal';
+import { normalizeReservations } from '@/lib/financial-adapters';
+import { formatCurrency, calculateTotal, safeCurrency } from '@/lib/financial';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -38,7 +40,7 @@ export default function DashboardPage() {
     queryKey: ['dashboard-kpi-reservations'],
     queryFn: async () => {
       const res = await api.get('/reservations');
-      return res.data;
+      return normalizeReservations(res.data);
     },
     enabled: authLoaded && user?.role === 'ADMIN'
   });
@@ -128,9 +130,7 @@ export default function DashboardPage() {
     acc + (station.bikes?.filter((b: any) => b.status === 'AVAILABLE').length || 0), 0
   ) || 0;
 
-  const totalRevenue = adminReservations?.reduce((acc: number, res: any) => 
-    acc + (res.status === 'COMPLETED' ? (res.priceActual || 0) : 0), 0
-  ) || 0;
+  const totalRevenue = calculateTotal(adminReservations?.filter((res: any) => res.status === 'COMPLETED'), (res) => res.priceActual);
 
   const activeRides = adminReservations?.filter((r: any) => r.status === 'ACTIVE').length || 0;
   const pendingRides = adminReservations?.filter((r: any) => r.status === 'CONFIRMED' || r.status === 'PENDING').length || 0;
@@ -144,7 +144,7 @@ export default function DashboardPage() {
               <h3 className="text-white/40 text-[10px] font-black flex items-center gap-2 uppercase tracking-widest">
                 <DollarSign size={14} className="text-emerald-400"/> Revenue
               </h3>
-              <p className="text-4xl font-black mt-2 leading-none">${totalRevenue.toFixed(0)}</p>
+              <p className="text-4xl font-black mt-2 leading-none">${formatCurrency(totalRevenue)}</p>
             </div>
             <div className="bg-white border-2 border-gray-100 p-6 rounded-3xl flex flex-col justify-between transition-all hover:scale-[1.02]">
               <h3 className="text-gray-400 text-[10px] font-black flex items-center gap-2 uppercase tracking-widest">

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Reservation } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatNIDate, formatNIDateOnly, formatNITimeOnly } from '@/lib/dateUtils';
+import { safeCurrency, formatCurrency } from '@/lib/financial';
 
 interface SettlementModalProps {
   isOpen: boolean;
@@ -65,7 +66,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
 
   if (!reservation) return null;
 
-  const rate = reservation.ratePerHour || 50;
+  const rate = safeCurrency(reservation.ratePerHour || 50);
   
   // Estimated Duration (Math.ceil as per requirement)
   const estDuration = Math.ceil(
@@ -77,8 +78,8 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
 
   // For User Mode, we do not compute new real cost if it's already completed
   const realCost = reservation.priceActual !== null && reservation.priceActual !== undefined 
-    ? reservation.priceActual 
-    : (realDuration * rate) + (reservation.extrasTotal || 0);
+    ? safeCurrency(reservation.priceActual) 
+    : (realDuration * rate) + safeCurrency(reservation.extrasTotal || 0);
 
   const isCompanyFault = incidentType !== 'NONE' && incidentCategory === 'COMPANY_FAULT';
   // If admin overrides to company fault, cost is 0. If user mode, they can't override.
@@ -86,7 +87,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
   
   const amountPaid = reservation.payments
     ?.filter(p => p.status === 'PAID')
-    .reduce((acc, p) => acc + (p.type === 'REFUND' ? -p.amount : p.amount), 0) || 0;
+    .reduce((acc, p) => acc + (p.type === 'REFUND' ? -safeCurrency(p.amount) : safeCurrency(p.amount)), 0) || 0;
   
   const balance = effectiveRealCost - amountPaid;
 
@@ -238,12 +239,12 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
               <div className="grid grid-cols-2 gap-y-8 relative">
                 <div>
                   <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Total Actual Cost</p>
-                  <p className="text-3xl font-black">${effectiveRealCost.toFixed(2)}</p>
+                  <p className="text-3xl font-black">${formatCurrency(effectiveRealCost)}</p>
                   <p className="text-[10px] text-white/30 font-medium mt-1">Reflects {realDuration}h usage</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Amount Already Paid</p>
-                  <p className="text-3xl font-black text-emerald-400">${amountPaid.toFixed(2)}</p>
+                  <p className="text-3xl font-black text-emerald-400">${formatCurrency(amountPaid)}</p>
                 </div>
               </div>
 
@@ -255,7 +256,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Final Balance</p>
                     <p className="text-4xl font-black">
-                      ${Math.abs(balance).toFixed(2)}
+                      ${formatCurrency(Math.abs(balance))}
                     </p>
                   </div>
                   <div className="text-right">

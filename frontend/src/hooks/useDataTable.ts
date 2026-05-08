@@ -40,7 +40,7 @@ export interface UseDataTableReturn<T> {
 
 // ─── Hook ───
 
-export function useDataTable<T extends Record<string, unknown>>({
+export function useDataTable<T extends object>({
   data,
   searchableKeys = [],
   defaultPageSize = 10,
@@ -166,10 +166,10 @@ export function useDataTable<T extends Record<string, unknown>>({
 
 // ─── Helper ───
 
-function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+function getNestedValue(obj: object, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
-    if (acc && typeof acc === 'object' && key in (acc as Record<string, unknown>)) {
-      return (acc as Record<string, unknown>)[key];
+    if (acc && typeof acc === 'object' && key in (acc as any)) {
+      return (acc as any)[key];
     }
     return undefined;
   }, obj);

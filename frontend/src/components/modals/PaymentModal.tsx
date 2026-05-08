@@ -7,6 +7,7 @@ import { CreditCard, User, FileText, AlertCircle, Receipt, DollarSign, ShieldChe
 import { toast } from 'sonner';
 import { Payment } from '@/types';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/financial';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -139,7 +140,7 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm, mode = 'admi
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-1">Total Transaction</p>
-                <p className="text-5xl font-black">${payment.amount.toFixed(2)}</p>
+                <p className="text-5xl font-black">${formatCurrency(payment.amount)}</p>
               </div>
               <div className={cn(
                 "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest",
@@ -152,7 +153,7 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm, mode = 'admi
             <div className="space-y-3 pt-6 border-t border-white/10">
               <div className="flex justify-between items-center text-sm">
                 <span className="font-bold text-white/50">Base {isRefund ? 'Refund' : 'Payment'}</span>
-                <span className="font-black">${payment.amount.toFixed(2)}</span>
+                <span className="font-black">${formatCurrency(payment.amount)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="font-bold text-white/50">Processing Fee</span>

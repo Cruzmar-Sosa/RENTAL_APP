@@ -14,6 +14,8 @@ import { Reservation } from '@/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatNIDate } from '@/lib/dateUtils';
+import { normalizeReservation } from '@/lib/financial-adapters';
+import { formatCurrency, safeCurrency } from '@/lib/financial';
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
@@ -37,7 +39,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
     setLoading(true);
     try {
       const { data } = await api.get(`/reservations/${reservationId}`);
-      setReservation(data);
+      setReservation(normalizeReservation(data));
     } catch (error) {
       toast.error('Failed to load reservation details');
     } finally {
@@ -58,13 +60,13 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
 
   const amountPaid = reservation?.payments
     ?.filter(p => p.status === 'PAID')
-    .reduce((acc, p) => acc + (p.type === 'REFUND' ? -p.amount : p.amount), 0) || 0;
+    .reduce((acc, p) => acc + (p.type === 'REFUND' ? -safeCurrency(p.amount) : safeCurrency(p.amount)), 0) || 0;
   
   const amountPending = reservation?.payments
     ?.filter(p => p.status === 'PENDING')
-    .reduce((acc, p) => acc + p.amount, 0) || 0;
+    .reduce((acc, p) => acc + safeCurrency(p.amount), 0) || 0;
 
-  const finalTotal = reservation?.priceActual || reservation?.priceEstimated || 0;
+  const finalTotal = safeCurrency(reservation?.priceActual || reservation?.priceEstimated || 0);
 
   const clientName = reservation?.guestName || reservation?.clientName || reservation?.user?.name || 'Unknown';
   const clientEmail = reservation?.user?.email || 'Walk-in Guest';
@@ -101,7 +103,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
           </div>
           <div className="text-right bg-gray-50 px-6 py-3 rounded-2xl border-2 border-gray-100">
             <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Financial State</p>
-            <p className="text-2xl font-black text-black">${finalTotal.toFixed(2)}</p>
+            <p className="text-2xl font-black text-black">${formatCurrency(finalTotal)}</p>
           </div>
         </div>
       )}
@@ -238,11 +240,11 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                 <div className="space-y-4">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold text-white/50">Initial Estimate</span>
-                    <span className="font-black text-white">${reservation.priceEstimated?.toFixed(2)}</span>
+                    <span className="font-black text-white">${formatCurrency(reservation.priceEstimated)}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold text-white/50">Settled Actual Cost</span>
-                    <span className="font-black text-white">${reservation.priceActual?.toFixed(2) || '---'}</span>
+                    <span className="font-black text-white">${formatCurrency(reservation.priceActual) || '---'}</span>
                   </div>
                   <div className="h-px bg-white/10 my-4" />
                   <div className="flex justify-between items-center">
@@ -250,14 +252,14 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                       <div className="w-2 h-2 rounded-full bg-emerald-500" />
                       <span className="text-[10px] font-black uppercase text-white/50">Total Paid</span>
                     </div>
-                    <span className="text-xl font-black text-emerald-400">${amountPaid.toFixed(2)}</span>
+                    <span className="text-xl font-black text-emerald-400">${formatCurrency(amountPaid)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-orange-500" />
                       <span className="text-[10px] font-black uppercase text-white/50">Pending</span>
                     </div>
-                    <span className="text-xl font-black text-orange-400">${amountPending.toFixed(2)}</span>
+                    <span className="text-xl font-black text-orange-400">${formatCurrency(amountPending)}</span>
                   </div>
                 </div>
               </div>
@@ -296,7 +298,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                           "text-2xl font-black tracking-tight",
                           p.type === 'REFUND' ? 'text-red-600' : 'text-gray-900'
                         )}>
-                          {p.type === 'REFUND' ? '-' : ''}${p.amount.toFixed(2)}
+                          {p.type === 'REFUND' ? '-' : ''}${formatCurrency(p.amount)}
                         </p>
                       </div>
                     </div>

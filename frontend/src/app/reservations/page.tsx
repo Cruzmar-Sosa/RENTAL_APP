@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { DataTablePro, DataTableColumn, DataTableFilter } from '@/components/ui/data-table-pro';
 import { useDataTable } from '@/hooks/useDataTable';
 import { formatNIDate } from '@/lib/dateUtils';
+import { normalizeReservations } from '@/lib/financial-adapters';
+import { formatCurrency } from '@/lib/financial';
 
 export default function ReservationsAdminPage() {
   const { canRead, canView, isLoaded, canUpdate, isAdmin, user } = usePermissions();
@@ -33,7 +35,8 @@ export default function ReservationsAdminPage() {
   const { data: reservations, isLoading, refetch } = useQuery({
     queryKey: ['reservations', canRead('RESERVATIONS')],
     queryFn: async () => {
-      return (await api.get('/reservations')).data;
+      const response = await api.get('/reservations');
+      return normalizeReservations(response.data);
     },
     enabled: isLoaded
   });
@@ -167,7 +170,7 @@ export default function ReservationsAdminPage() {
       cell: (r) => (
         <div className="flex flex-col">
            <span className="text-sm font-black text-gray-900">
-            ${(r.priceActual || r.priceEstimated || 0).toFixed(2)}
+            ${formatCurrency(r.priceActual || r.priceEstimated || 0)}
            </span>
            <span className={cn("text-[10px] font-bold uppercase", r.financialStatus === 'PAID' ? 'text-emerald-500' : 'text-orange-400')}>
              {r.financialStatus}
