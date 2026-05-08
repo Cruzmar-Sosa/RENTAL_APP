@@ -3,56 +3,39 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
-
-// ─────────────────────────────────────────────
-// AUTH & PERMISSIONS
-// ─────────────────────────────────────────────
 
 model User {
-  id           String           @id @default(uuid())
-  code         Int              @unique @default(autoincrement())
-  email        String           @unique
-  password     String
-  name         String?
-  phone        String?
-  documentType DocumentType?
-  documentNumber String?
-  role         Role             @default(USER)
-  reservations Reservation[]
-  reportedIncidents Reservation[] @relation("IncidentReporter")
-  permissions  UserPermission[]
-  payments     Payment[]
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  deletedAt    DateTime?
-}
-
-enum DocumentType {
-  DNI
-  PASSPORT
-  OTHER
-}
-
-enum Role {
-  USER
-  ADMIN
-  INVITED
+  id                String           @id @default(uuid())
+  code              Int              @unique @default(autoincrement())
+  email             String           @unique
+  password          String
+  name              String?
+  phone             String?
+  documentType      DocumentType?
+  documentNumber    String?
+  role              Role             @default(USER)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+  payments          Payment[]
+  reportedIncidents Reservation[]    @relation("IncidentReporter")
+  reservations      Reservation[]
+  permissions       UserPermission[]
 }
 
 model Permission {
   id            String           @id @default(uuid())
-  module        String           // e.g., "BIKES", "USERS", "STATIONS"
-  action        String           // e.g., "CREATE", "READ", "UPDATE", "DELETE", "PAGE"
-  type          String           // "PAGE" or "ACTION"
+  module        String
+  action        String
+  type          String
   createdAt     DateTime         @default(now())
   roleAccess    RolePermission[]
   userOverrides UserPermission[]
 
   @@unique([module, action])
 }
-
 
 model RolePermission {
   id           String     @id @default(uuid())
@@ -66,52 +49,206 @@ model RolePermission {
 model UserPermission {
   id           String     @id @default(uuid())
   userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   permissionId String
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   allowed      Boolean
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, permissionId])
 }
 
-// ─────────────────────────────────────────────
-// STATIONS & BIKES
-// ─────────────────────────────────────────────
-
 model Station {
-  id        String   @id @default(uuid())
-  code      Int      @unique @default(autoincrement())
+  id        String    @id @default(uuid())
+  code      Int       @unique @default(autoincrement())
   name      String
   latitude  Float
   longitude Float
   address   String?
-  capacity  Int      @default(10)
-  bikes     Bike[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  capacity  Int       @default(10)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+  bikes     Bike[]
 }
 
 model Bike {
-  id                String               @id @default(uuid())
-  code              Int                  @unique @default(autoincrement())
+  id                String                @id @default(uuid())
+  code              Int                   @unique @default(autoincrement())
   model             String?
-  batteryLevel      Int                  @default(100) // percentage 0–100
-  
-  // @deprecated Use operationalStatus instead. Kept for transitional compatibility.
-  status            BikeStatus           @default(AVAILABLE)
-  
+  batteryLevel      Int                   @default(100)
+  status            BikeStatus            @default(AVAILABLE)
   operationalStatus BikeOperationalStatus @default(AVAILABLE)
   technicalStatus   BikeTechnicalStatus   @default(OK)
-  
   stationId         String?
-  station           Station?             @relation(fields: [stationId], references: [id])
-  reservations      Reservation[]
-  locations         BikeLocation[]
-  events            BikeEvent[]
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
   deletedAt         DateTime?
+  station           Station?              @relation(fields: [stationId], references: [id])
+  events            BikeEvent[]
+  locations         BikeLocation[]
+  reservations      Reservation[]
+}
+
+model BikeLocation {
+  id        String   @id @default(uuid())
+  bikeId    String
+  latitude  Float
+  longitude Float
+  speed     Float    @default(0)
+  timestamp DateTime @default(now())
+  bike      Bike     @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+
+  @@index([bikeId, timestamp])
+}
+
+model Reservation {
+  id                   String                     @id @default(uuid())
+  userId               String
+  bikeId               String
+  status               ReservationStatus          @default(CONFIRMED)
+  financialStatus      ReservationFinancialStatus @default(PENDING)
+  startTime            DateTime                   @default(now())
+  endTime              DateTime?
+  checkInAt            DateTime?
+  actualStart          DateTime?
+  actualEnd            DateTime?
+  settledAt            DateTime?
+  expiresAt            DateTime?
+  priceEstimated       Decimal?                   @db.Decimal(10, 2)
+  priceActual          Decimal?                   @db.Decimal(10, 2)
+  ratePerHour          Decimal?                   @default(50) @db.Decimal(10, 2)
+  clientName           String?
+  clientPhone          String?
+  guestName            String?
+  guestDocument        String?
+  guestPhone           String?
+  extras               Json?
+  extrasTotal          Decimal?                   @default(0) @db.Decimal(10, 2)
+  bikeCondition        String?
+  bikeNotes            String?
+  termsAccepted        Boolean?                   @default(false)
+  incidentType         String?
+  incidentCategory     String?
+  incidentNotes        String?
+  incidentReportedAt   DateTime?
+  incidentReportedById String?
+  settlementReference  String?                    @unique
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  payments             Payment[]
+  bike                 Bike                       @relation(fields: [bikeId], references: [id])
+  incidentReportedBy   User?                      @relation("IncidentReporter", fields: [incidentReportedById], references: [id])
+  user                 User                       @relation(fields: [userId], references: [id])
+  events               ReservationEvent[]
+
+  @@index([status, financialStatus])
+}
+
+model Payment {
+  id                    String        @id @default(uuid())
+  reservationId         String
+  userId                String
+  amount                Decimal       @db.Decimal(10, 2)
+  currency              String        @default("USD")
+  type                  PaymentType   @default(UPFRONT)
+  status                PaymentStatus @default(PENDING)
+  stripePaymentIntentId String?
+  paidAt                DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  reservation           Reservation   @relation(fields: [reservationId], references: [id])
+  user                  User          @relation(fields: [userId], references: [id])
+}
+
+model Route {
+  id          String          @id @default(uuid())
+  name        String
+  description String?
+  difficulty  RouteDifficulty @default(EASY)
+  distanceKm  Float
+  durationMin Int
+  polyline    Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  pois        POI[]
+}
+
+model POI {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  latitude    Float
+  longitude   Float
+  routeId     String
+  createdAt   DateTime @default(now())
+  route       Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}
+
+model ReservationEvent {
+  id                      String                      @id @default(uuid())
+  reservationId           String
+  previousStatus          ReservationStatus?
+  nextStatus              ReservationStatus
+  previousFinancialStatus ReservationFinancialStatus?
+  nextFinancialStatus     ReservationFinancialStatus
+  eventType               String
+  metadata                Json?
+  createdById             String?
+  correlationId           String?
+  timestamp               DateTime                    @default(now())
+  reservation             Reservation                 @relation(fields: [reservationId], references: [id])
+
+  @@index([reservationId])
+  @@index([correlationId])
+}
+
+model PaymentEvent {
+  id                String         @id @default(uuid())
+  paymentId         String
+  reservationId     String
+  eventType         String
+  amount            Decimal        @db.Decimal(10, 2)
+  currency          String         @default("USD")
+  provider          String?
+  providerReference String?
+  statusBefore      PaymentStatus?
+  statusAfter       PaymentStatus
+  metadata          Json?
+  timestamp         DateTime       @default(now())
+
+  @@index([paymentId])
+  @@index([reservationId])
+}
+
+model BikeEvent {
+  id                        String                 @id @default(uuid())
+  bikeId                    String
+  previousOperationalStatus BikeOperationalStatus?
+  nextOperationalStatus     BikeOperationalStatus
+  previousTechnicalStatus   BikeTechnicalStatus?
+  nextTechnicalStatus       BikeTechnicalStatus
+  eventType                 BikeEventType
+  source                    BikeEventSource
+  correlationId             String?
+  metadata                  Json?
+  createdById               String?
+  timestamp                 DateTime               @default(now())
+  bike                      Bike                   @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+
+  @@index([bikeId])
+  @@index([correlationId])
+}
+
+enum DocumentType {
+  DNI
+  PASSPORT
+  OTHER
+}
+
+enum Role {
+  USER
+  ADMIN
+  INVITED
 }
 
 enum BikeStatus {
@@ -134,87 +271,14 @@ enum BikeTechnicalStatus {
   OUT_OF_SERVICE
 }
 
-model BikeLocation {
-  id        String   @id @default(uuid())
-  bikeId    String
-  bike      Bike     @relation(fields: [bikeId], references: [id], onDelete: Cascade)
-  latitude  Float
-  longitude Float
-  speed     Float    @default(0) // km/h
-  timestamp DateTime @default(now())
-
-  @@index([bikeId, timestamp])
-}
-
-// ─────────────────────────────────────────────
-// RESERVATIONS
-// ─────────────────────────────────────────────
-
-model Reservation {
-  id             String            @id @default(uuid())
-  userId         String
-  user           User              @relation(fields: [userId], references: [id])
-  bikeId         String
-  bike           Bike              @relation(fields: [bikeId], references: [id])
-  status         ReservationStatus @default(CONFIRMED)
-  financialStatus ReservationFinancialStatus @default(PENDING)
-  
-  startTime      DateTime          @default(now())   // when reservation was created
-  endTime        DateTime?                           // expected end (optional)
-  
-  checkInAt      DateTime?                           // when physical check-in occurred
-  actualStart    DateTime?                           // when ride actually started
-  actualEnd      DateTime?                           // when ride actually ended
-  settledAt      DateTime?                           // when financial closure occurred
-  
-  expiresAt      DateTime?                           // expiration for PENDING reservations
-  priceEstimated Decimal?          @db.Decimal(10, 2)  // calculated on create
-  priceActual    Decimal?          @db.Decimal(10, 2)  // calculated on complete
-
-  // ── Pricing ──
-  ratePerHour    Decimal?          @default(50)      @db.Decimal(10, 2) // editable rate at creation
-
-  // ── Guest / Client snapshot (decoupled from auth user) ──
-  clientName     String?                              // may differ from user.name
-  clientPhone    String?                              // snapshot at reservation time
-  guestName      String?                              // for walk-in / non-registered clients
-  guestDocument  String?                              // guest document number
-  guestPhone     String?                              // guest phone
-
-  // ── Extras (snapshot — immutable after creation) ──
-  extras         Json?                                // [{name:"Helmet",price:10},...]
-  extrasTotal    Decimal?          @default(0)       @db.Decimal(10, 2)
-
-  // ── Check-in (set at Start Ride) ──
-  bikeCondition  String?                              // GOOD | REGULAR | DAMAGED
-  bikeNotes      String?                              // free-text notes
-  termsAccepted  Boolean?          @default(false)
-
-  // ── Settlement / Incidents ──
-  incidentType   String?                              // MECHANICAL | TECHNICAL | OTHER
-  incidentCategory String?                            // COMPANY_FAULT | CUSTOMER_FAULT
-  incidentNotes  String?                              // free-text
-  incidentReportedAt DateTime?
-  incidentReportedById String?
-  incidentReportedBy User?           @relation("IncidentReporter", fields: [incidentReportedById], references: [id])
-
-  settlementReference String?        @unique
-  payments       Payment[]
-  events         ReservationEvent[]
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-
-  @@index([status, financialStatus])
-}
-
 enum ReservationStatus {
   PENDING
   CONFIRMED
   CHECKED_IN
-  ACTIVE      // ride in progress
-  COMPLETED   // ride ended, bike returned
+  ACTIVE
+  COMPLETED
   SETTLEMENT_PENDING
-  SETTLED     // financial & operational closure
+  SETTLED
   CANCELLED
   NO_SHOW
 }
@@ -225,26 +289,6 @@ enum ReservationFinancialStatus {
   PAID
   REFUNDED
   FAILED
-}
-
-// ─────────────────────────────────────────────
-// PAYMENTS
-// ─────────────────────────────────────────────
-
-model Payment {
-  id                   String        @id @default(uuid())
-  reservationId        String        
-  reservation          Reservation   @relation(fields: [reservationId], references: [id])
-  userId               String
-  user                 User          @relation(fields: [userId], references: [id])
-  amount               Decimal       @db.Decimal(10, 2)
-  currency             String        @default("USD")
-  type                 PaymentType   @default(UPFRONT)
-  status               PaymentStatus @default(PENDING)
-  stripePaymentIntentId String?      // Ready for Stripe integration
-  paidAt               DateTime?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
 }
 
 enum PaymentStatus {
@@ -258,114 +302,14 @@ enum PaymentType {
   UPFRONT
   DEPOSIT
   POST_RIDE
-  BALANCE    // post-ride debt when actual > estimated
-  REFUND     // refund issued due to incident
-}
-
-// ─────────────────────────────────────────────
-// ROUTES & POI
-// ─────────────────────────────────────────────
-
-model Route {
-  id          String     @id @default(uuid())
-  name        String
-  description String?
-  difficulty  RouteDifficulty @default(EASY)
-  distanceKm  Float
-  durationMin Int        // estimated minutes
-  polyline    Json?      // array of {lat, lng} points — ready for Google Maps
-  pois        POI[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  BALANCE
+  REFUND
 }
 
 enum RouteDifficulty {
   EASY
   MODERATE
   HARD
-}
-
-model POI {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  latitude    Float
-  longitude   Float
-  routeId     String
-  route       Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-}
-
-// ─────────────────────────────────────────────
-// AUDIT & EVENT SOURCING
-// ─────────────────────────────────────────────
-
-model ReservationEvent {
-  id                    String            @id @default(uuid())
-  reservationId         String
-  reservation           Reservation       @relation(fields: [reservationId], references: [id])
-  
-  previousStatus        ReservationStatus?
-  nextStatus            ReservationStatus
-  
-  previousFinancialStatus ReservationFinancialStatus?
-  nextFinancialStatus    ReservationFinancialStatus
-  
-  eventType             String            // e.g., "STATUS_CHANGE", "SETTLEMENT", "INCIDENT"
-  metadata              Json?             // Additional data
-  
-  createdById           String?
-  correlationId         String?           // For distributed tracing
-  
-  timestamp             DateTime          @default(now())
-
-  @@index([reservationId])
-  @@index([correlationId])
-}
-
-model PaymentEvent {
-  id                String        @id @default(uuid())
-  paymentId         String
-  reservationId     String
-  
-  eventType         String        // e.g., "CREATED", "SUCCESS", "FAILED", "REFUNDED"
-  amount            Decimal       @db.Decimal(10, 2)
-  currency          String        @default("USD")
-  
-  provider          String?       // e.g., "STRIPE", "MANUAL"
-  providerReference String?
-  
-  statusBefore      PaymentStatus?
-  statusAfter       PaymentStatus
-  
-  metadata          Json?
-  timestamp         DateTime      @default(now())
-
-  @@index([paymentId])
-  @@index([reservationId])
-}
-
-model BikeEvent {
-  id                         String                @id @default(uuid())
-  bikeId                     String
-  bike                       Bike                  @relation(fields: [bikeId], references: [id], onDelete: Cascade)
-  
-  previousOperationalStatus  BikeOperationalStatus?
-  nextOperationalStatus      BikeOperationalStatus
-  
-  previousTechnicalStatus    BikeTechnicalStatus?
-  nextTechnicalStatus        BikeTechnicalStatus
-  
-  eventType                  BikeEventType
-  source                     BikeEventSource
-  correlationId              String?               // For tracing related reservation events
-  
-  metadata                   Json?
-  createdById                String?
-  timestamp                  DateTime              @default(now())
-
-  @@index([bikeId])
-  @@index([correlationId])
 }
 
 enum BikeEventType {
