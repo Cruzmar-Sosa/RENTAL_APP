@@ -44,25 +44,27 @@ export function BaseModal({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 backdrop-blur-md animate-in fade-in duration-300 p-4 sm:p-6"
       aria-modal="true"
       role="dialog"
+      onClick={onClose}
     >
       <div
         className={cn(
           `
           relative
-          w-[95%]
+          w-full
           sm:max-w-[700px]
           md:max-w-[900px]
           lg:max-w-[1100px]
-          max-h-[90vh]
-          overflow-visible
-          rounded-[2rem]
+          max-h-[95vh]
+          sm:max-h-[90vh]
+          overflow-hidden
+          rounded-[2.5rem]
           bg-white
-          shadow-2xl
+          shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)]
           flex flex-col
-          animate-in zoom-in-95 slide-in-from-bottom-4 duration-300
+          animate-in zoom-in-95 slide-in-from-bottom-8 duration-500
           `,
           className
         )}
@@ -72,32 +74,35 @@ export function BaseModal({
         <button
           className="
             absolute top-6 right-6 
-            z-50
-            w-10 h-10 
+            z-110
+            w-12 h-12 
             flex items-center justify-center 
-            rounded-full 
-            bg-gray-100 hover:bg-black 
-            text-gray-500 hover:text-white 
-            transition-all duration-200
+            rounded-2xl
+            bg-gray-50 hover:bg-black 
+            text-gray-400 hover:text-white 
+            transition-all duration-300
             hover:rotate-90
+            shadow-sm hover:shadow-xl
           "
           onClick={onClose}
           aria-label="Close modal"
         >
-          <span className="text-xl leading-none">✕</span>
+          <span className="text-xl font-light">✕</span>
         </button>
 
         {/* CONTENT CONTAINER */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-10 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
-          {children}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 sm:p-12 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+          <div className="max-w-full mx-auto">
+            {children}
+          </div>
         </div>
 
-        {/* FOOTER */}
+        {/* FOOTER - Optional via showFooter */}
         {showFooter && (
-          <div className="flex justify-end p-6 sm:px-10 sm:pb-10 pt-4 gap-3 bg-gray-50/50 border-t border-gray-100">
+          <div className="flex flex-col sm:flex-row justify-end p-6 sm:px-12 sm:pb-12 pt-6 gap-4 bg-gray-50/80 backdrop-blur-sm border-t border-gray-100 mt-auto">
             <button 
               onClick={onClose}
-              className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:text-black hover:bg-gray-100 transition-all"
+              className="w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-gray-400 hover:text-black hover:bg-white transition-all shadow-sm hover:shadow-md border border-transparent hover:border-gray-200"
             >
               {cancelText}
             </button>

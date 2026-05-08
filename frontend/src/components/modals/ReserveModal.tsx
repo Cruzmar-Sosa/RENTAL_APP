@@ -137,7 +137,7 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }:
       isOpen={isOpen}
       onClose={onClose}
       showFooter={false}
-      className="max-w-5xl"
+      className="max-w-6xl"
     >
       <div className="flex flex-col gap-6 mb-10">
         <div className="flex justify-between items-center">

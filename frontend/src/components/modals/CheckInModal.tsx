@@ -58,7 +58,7 @@ export function CheckInModal({ isOpen, onClose, reservation, onConfirm }: CheckI
       isOpen={isOpen}
       onClose={onClose}
       showFooter={false}
-      className="max-w-5xl"
+      className="max-w-6xl"
     >
       <div className="flex items-center gap-4 mb-8">
         <div className="p-3 bg-black text-white rounded-2xl">
@@ -154,7 +154,7 @@ export function CheckInModal({ isOpen, onClose, reservation, onConfirm }: CheckI
               <h4 className="text-lg font-black text-gray-900 uppercase tracking-tight">Bike Delivery Condition</h4>
             </div>
             
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {['GOOD', 'REGULAR', 'DAMAGED'].map((c) => (
                 <button
                   key={c}

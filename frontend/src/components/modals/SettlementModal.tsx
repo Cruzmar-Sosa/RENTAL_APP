@@ -61,6 +61,8 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
     }
   }, [autoDuration, isManualOverride, isOpen]);
 
+  const isSubmitting = useRef(false);
+
   if (!reservation) return null;
 
   const rate = reservation.ratePerHour || 50;
@@ -87,8 +89,6 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
     .reduce((acc, p) => acc + (p.type === 'REFUND' ? -p.amount : p.amount), 0) || 0;
   
   const balance = effectiveRealCost - amountPaid;
-
-  const isSubmitting = useRef(false);
 
   const handleAction = async () => {
     if (isSubmitting.current) return;
@@ -135,7 +135,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
       isOpen={isOpen}
       onClose={onClose}
       showFooter={false}
-      className="max-w-5xl"
+      className="max-w-6xl"
     >
       <div className="flex items-center gap-4 mb-8">
         <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-100">
@@ -324,7 +324,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
                   <SelectTrigger className="h-16 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:border-black text-sm font-bold">
                     <SelectValue placeholder="No incidents recorded" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-2 z-9999">
+                  <SelectContent className="rounded-2xl border-2 z-9999" sideOffset={5}>
                     <SelectItem value="NONE" className="font-bold">None (Standard Return)</SelectItem>
                     <SelectItem value="MECHANICAL" className="font-bold">Mechanical Failure (Bike Issue)</SelectItem>
                     <SelectItem value="TECHNICAL" className="font-bold">Technical Error (App/System)</SelectItem>
