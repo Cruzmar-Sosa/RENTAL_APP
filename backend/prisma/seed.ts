@@ -120,10 +120,10 @@ async function main() {
         capacity: 10,
         bikes: {
           create: [
-            { model: 'eTours Pro', status: 'AVAILABLE', batteryLevel: 95 },
-            { model: 'eTours Pro', status: 'AVAILABLE', batteryLevel: 88 },
-            { model: 'eTours City', status: 'AVAILABLE', batteryLevel: 72 },
-            { model: 'eTours City', status: 'MAINTENANCE', batteryLevel: 15 },
+            { model: 'eTours Pro', status: 'AVAILABLE', operationalStatus: 'AVAILABLE', technicalStatus: 'OK', batteryLevel: 95 },
+            { model: 'eTours Pro', status: 'AVAILABLE', operationalStatus: 'AVAILABLE', technicalStatus: 'OK', batteryLevel: 88 },
+            { model: 'eTours City', status: 'AVAILABLE', operationalStatus: 'AVAILABLE', technicalStatus: 'OK', batteryLevel: 72 },
+            { model: 'eTours City', status: 'AVAILABLE', operationalStatus: 'AVAILABLE', technicalStatus: 'MAINTENANCE', batteryLevel: 15 },
           ]
         }
       }

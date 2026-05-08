@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { BikesService } from './bikes.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
@@ -32,8 +32,8 @@ export class BikesController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('BIKES', 'UPDATE')
-  update(@Param('id') id: string, @Body() updateBikeDto: UpdateBikeDto) {
-    return this.bikesService.update(id, updateBikeDto as any);
+  update(@Param('id') id: string, @Body() updateBikeDto: UpdateBikeDto, @Request() req: any) {
+    return this.bikesService.update(id, updateBikeDto as any, req.user);
   }
 
   @Delete(':id')

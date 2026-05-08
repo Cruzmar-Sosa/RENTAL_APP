@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ReservationStatus, ReservationFinancialStatus, PaymentStatus } from '@prisma/client';
+import { 
+  ReservationStatus, 
+  ReservationFinancialStatus, 
+  PaymentStatus,
+  BikeOperationalStatus,
+  BikeTechnicalStatus,
+  BikeEventType,
+  BikeEventSource
+} from '@prisma/client';
 
 @Injectable()
 export class AuditService {
@@ -75,6 +83,42 @@ export class AuditService {
       });
     } catch (error) {
       this.logger.error(`[AUDIT] Failed to record payment event for payment ${data.paymentId}`, error);
+    }
+  }
+
+  async recordBikeEvent(params: {
+    bikeId: string;
+    previousOperationalStatus?: BikeOperationalStatus;
+    nextOperationalStatus: BikeOperationalStatus;
+    previousTechnicalStatus?: BikeTechnicalStatus;
+    nextTechnicalStatus: BikeTechnicalStatus;
+    eventType: BikeEventType;
+    source: BikeEventSource;
+    correlationId?: string;
+    metadata?: any;
+    createdById?: string;
+    tx?: any;
+  }) {
+    const { tx, ...data } = params;
+    const db = tx || this.prisma;
+
+    try {
+      return await db.bikeEvent.create({
+        data: {
+          bikeId: data.bikeId,
+          previousOperationalStatus: data.previousOperationalStatus,
+          nextOperationalStatus: data.nextOperationalStatus,
+          previousTechnicalStatus: data.previousTechnicalStatus,
+          nextTechnicalStatus: data.nextTechnicalStatus,
+          eventType: data.eventType,
+          source: data.source,
+          correlationId: data.correlationId,
+          metadata: data.metadata,
+          createdById: data.createdById,
+        },
+      });
+    } catch (error) {
+      this.logger.error(`[AUDIT] Failed to record bike event for bike ${data.bikeId}`, error);
     }
   }
 }

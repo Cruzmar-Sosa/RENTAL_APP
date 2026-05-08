@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateReservationDto, StartRideDto, CompleteRideDto, ReportIncidentDto, SettleRideDto, CheckInDto } from './dto/create-reservation.dto';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { ReservationLifecycleService } from './reservation-lifecycle.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class ReservationsService {
@@ -12,7 +13,8 @@ export class ReservationsService {
   constructor(
     private prisma: PrismaService,
     private trackingGateway: TrackingGateway,
-    private lifecycle: ReservationLifecycleService
+    private lifecycle: ReservationLifecycleService,
+    private audit: AuditService
   ) {}
 
   // ─────────────────────────────────────────────
@@ -37,9 +39,15 @@ export class ReservationsService {
           where: { id: dto.bikeId }
         });
 
-        if (!bike || bike.status !== 'AVAILABLE') {
-          throw new BadRequestException('Bike is not available or does not exist');
+        if (!bike) {
+          throw new BadRequestException('Bike does not exist');
         }
+
+        if (bike.operationalStatus !== 'AVAILABLE' || bike.technicalStatus !== 'OK') {
+          const reason = bike.technicalStatus !== 'OK' ? `Maintenance (${bike.technicalStatus})` : `Operational (${bike.operationalStatus})`;
+          throw new BadRequestException(`Bike is not available for reservation. Reason: ${reason}`);
+        }
+
         if (bike.batteryLevel < 20) {
           throw new BadRequestException('Bike battery too low to be reserved');
         }
@@ -91,12 +99,29 @@ export class ReservationsService {
           },
         });
 
+        // ── Operational status transition ──
         await tx.bike.update({
           where: { id: dto.bikeId },
-          data: { status: 'RESERVED' },
+          data: { 
+            operationalStatus: 'RESERVED',
+            status: 'RESERVED' // Deprecated compatibility field
+          },
         });
 
-        this.logger.log(`[CREATE] Success: Res ${reservation.id}, Bike ${dto.bikeId} -> RESERVED`);
+        await this.audit.recordBikeEvent({
+          bikeId: dto.bikeId,
+          previousOperationalStatus: 'AVAILABLE',
+          nextOperationalStatus: 'RESERVED',
+          previousTechnicalStatus: bike.technicalStatus,
+          nextTechnicalStatus: bike.technicalStatus,
+          eventType: 'OPERATIONAL_STATUS_CHANGED',
+          source: 'LIFECYCLE',
+          correlationId: reservation.id,
+          createdById: effectiveUserId,
+          tx
+        });
+
+        this.logger.log(`[CREATE] Success: Res ${reservation.id}, Bike ${dto.bikeId} -> RESERVED (Operational)`);
         return reservation;
       });
     } catch (error) {
@@ -150,10 +175,26 @@ export class ReservationsService {
 
         await tx.bike.update({
           where: { id: reservation.bikeId },
-          data: { status: 'IN_USE' } // Block bike at check-in
+          data: { 
+            operationalStatus: 'IN_USE',
+            status: 'IN_USE' // Block bike at check-in
+          }
         });
 
-        this.logger.log(`[CHECK-IN] Success: Res ${id}, Bike ${reservation.bikeId} -> IN_USE (Blocked)`);
+        await this.audit.recordBikeEvent({
+          bikeId: reservation.bikeId,
+          previousOperationalStatus: 'RESERVED',
+          nextOperationalStatus: 'IN_USE',
+          previousTechnicalStatus: 'OK', // Assume OK if it was reserved
+          nextTechnicalStatus: 'OK',
+          eventType: 'OPERATIONAL_STATUS_CHANGED',
+          source: 'LIFECYCLE',
+          correlationId: id,
+          createdById: caller.sub,
+          tx
+        });
+
+        this.logger.log(`[CHECK-IN] Success: Res ${id}, Bike ${reservation.bikeId} -> IN_USE (Operational Blocked)`);
         return updated;
       });
     } catch (error) {
@@ -332,10 +373,26 @@ export class ReservationsService {
 
         await tx.bike.update({
           where: { id: reservation.bikeId },
-          data: { status: 'AVAILABLE' }
+          data: { 
+            operationalStatus: 'AVAILABLE',
+            status: 'AVAILABLE'
+          }
         });
 
-        this.logger.log(`[SETTLE] Success: Res ${id} -> SETTLED, Bike ${reservation.bikeId} -> AVAILABLE`);
+        await this.audit.recordBikeEvent({
+          bikeId: reservation.bikeId,
+          previousOperationalStatus: 'IN_USE',
+          nextOperationalStatus: 'AVAILABLE',
+          previousTechnicalStatus: 'OK',
+          nextTechnicalStatus: 'OK',
+          eventType: 'OPERATIONAL_STATUS_CHANGED',
+          source: 'SETTLEMENT',
+          correlationId: id,
+          createdById: caller.sub,
+          tx
+        });
+
+        this.logger.log(`[SETTLE] Success: Res ${id} -> SETTLED, Bike ${reservation.bikeId} -> AVAILABLE (Operational)`);
         return updated;
       });
     } catch (error) {
@@ -406,7 +463,23 @@ export class ReservationsService {
         
         await tx.bike.update({
           where: { id: reservation.bikeId },
-          data: { status: 'AVAILABLE' },
+          data: { 
+            operationalStatus: 'AVAILABLE',
+            status: 'AVAILABLE' 
+          },
+        });
+
+        await this.audit.recordBikeEvent({
+          bikeId: reservation.bikeId,
+          previousOperationalStatus: 'RESERVED', // Cancellations happen from RESERVED/PENDING
+          nextOperationalStatus: 'AVAILABLE',
+          previousTechnicalStatus: 'OK',
+          nextTechnicalStatus: 'OK',
+          eventType: 'OPERATIONAL_STATUS_CHANGED',
+          source: 'LIFECYCLE',
+          correlationId: id,
+          createdById: caller.sub,
+          tx
         });
 
         await tx.payment.updateMany({
@@ -514,7 +587,22 @@ export class ReservationsService {
           
           await tx.bike.update({
             where: { id: res.bikeId },
-            data: { status: 'AVAILABLE' },
+            data: { 
+              operationalStatus: 'AVAILABLE',
+              status: 'AVAILABLE' 
+            },
+          });
+
+          await this.audit.recordBikeEvent({
+            bikeId: res.bikeId,
+            previousOperationalStatus: 'RESERVED',
+            nextOperationalStatus: 'AVAILABLE',
+            previousTechnicalStatus: 'OK',
+            nextTechnicalStatus: 'OK',
+            eventType: 'OPERATIONAL_STATUS_CHANGED',
+            source: 'CRON',
+            correlationId: res.id,
+            tx
           });
           
           await tx.payment.updateMany({
@@ -528,7 +616,7 @@ export class ReservationsService {
           reservationId: res.id
         });
 
-        this.logger.log(`[Cron] Expired reservation ${res.id} → CANCELLED, Bike ${res.bikeId} → AVAILABLE`);
+        this.logger.log(`[Cron] Expired reservation ${res.id} → CANCELLED, Bike ${res.bikeId} → AVAILABLE (Operational)`);
       }
     } catch (error) {
       this.logger.error('[Cron] Failed to process expired reservations', error);

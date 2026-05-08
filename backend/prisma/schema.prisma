@@ -93,18 +93,25 @@ model Station {
 }
 
 model Bike {
-  id           String         @id @default(uuid())
-  code         Int            @unique @default(autoincrement())
-  model        String?
-  batteryLevel Int            @default(100) // percentage 0–100
-  status       BikeStatus     @default(AVAILABLE)
-  stationId    String?
-  station      Station?       @relation(fields: [stationId], references: [id])
-  reservations Reservation[]
-  locations    BikeLocation[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  deletedAt    DateTime?
+  id                String               @id @default(uuid())
+  code              Int                  @unique @default(autoincrement())
+  model             String?
+  batteryLevel      Int                  @default(100) // percentage 0–100
+  
+  // @deprecated Use operationalStatus instead. Kept for transitional compatibility.
+  status            BikeStatus           @default(AVAILABLE)
+  
+  operationalStatus BikeOperationalStatus @default(AVAILABLE)
+  technicalStatus   BikeTechnicalStatus   @default(OK)
+  
+  stationId         String?
+  station           Station?             @relation(fields: [stationId], references: [id])
+  reservations      Reservation[]
+  locations         BikeLocation[]
+  events            BikeEvent[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  deletedAt         DateTime?
 }
 
 enum BikeStatus {
@@ -112,6 +119,19 @@ enum BikeStatus {
   RESERVED
   IN_USE
   MAINTENANCE
+}
+
+enum BikeOperationalStatus {
+  AVAILABLE
+  RESERVED
+  CHECKED_IN
+  IN_USE
+}
+
+enum BikeTechnicalStatus {
+  OK
+  MAINTENANCE
+  OUT_OF_SERVICE
 }
 
 model BikeLocation {
@@ -323,4 +343,45 @@ model PaymentEvent {
 
   @@index([paymentId])
   @@index([reservationId])
+}
+
+model BikeEvent {
+  id                         String                @id @default(uuid())
+  bikeId                     String
+  bike                       Bike                  @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+  
+  previousOperationalStatus  BikeOperationalStatus?
+  nextOperationalStatus      BikeOperationalStatus
+  
+  previousTechnicalStatus    BikeTechnicalStatus?
+  nextTechnicalStatus        BikeTechnicalStatus
+  
+  eventType                  BikeEventType
+  source                     BikeEventSource
+  correlationId              String?               // For tracing related reservation events
+  
+  metadata                   Json?
+  createdById                String?
+  timestamp                  DateTime              @default(now())
+
+  @@index([bikeId])
+  @@index([correlationId])
+}
+
+enum BikeEventType {
+  OPERATIONAL_STATUS_CHANGED
+  TECHNICAL_STATUS_CHANGED
+  ASSIGNED_TO_STATION
+  MAINTENANCE_STARTED
+  MAINTENANCE_COMPLETED
+  AUTO_SYNC
+}
+
+enum BikeEventSource {
+  LIFECYCLE
+  ADMIN
+  SYSTEM
+  SETTLEMENT
+  CRON
+  SYNC_ENGINE
 }
