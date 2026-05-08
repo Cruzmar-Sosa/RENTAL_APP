@@ -8,18 +8,34 @@ export class ReservationLifecycleService {
   // ─────────────────────────────────────────────
   // 1. Strict State Transitions
   // ─────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  // 1. Strict State Transitions (Formal State Machine)
+  // ─────────────────────────────────────────────
   validateTransition(currentStatus: ReservationStatus, targetStatus: ReservationStatus): void {
     const validTransitions: Record<ReservationStatus, ReservationStatus[]> = {
       PENDING: ['CONFIRMED', 'CANCELLED'],
-      CONFIRMED: ['ACTIVE', 'CANCELLED', 'NO_SHOW'],
+      CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'],
+      CHECKED_IN: ['ACTIVE', 'CANCELLED'],
       ACTIVE: ['COMPLETED'],
-      COMPLETED: [],
+      COMPLETED: ['SETTLEMENT_PENDING', 'SETTLED'],
+      SETTLEMENT_PENDING: ['SETTLED'],
+      SETTLED: [],
       CANCELLED: [],
       NO_SHOW: [],
     };
 
     if (!validTransitions[currentStatus]?.includes(targetStatus)) {
       throw new BadRequestException(`Business Rule Violation: Invalid status transition from ${currentStatus} to ${targetStatus}`);
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // 2. Settlement Criteria
+  // ─────────────────────────────────────────────
+  validateSettlement(financialStatus: string): void {
+    const validFinancialStatuses = ['PAID', 'REFUNDED'];
+    if (!validFinancialStatuses.includes(financialStatus)) {
+      throw new BadRequestException(`Settlement Denied: Reservation must be fully PAID or REFUNDED to reach SETTLED status. Current status: ${financialStatus}`);
     }
   }
 

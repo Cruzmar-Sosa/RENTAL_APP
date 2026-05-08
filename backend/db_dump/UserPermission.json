@@ -1,0 +1,176 @@
+[
+  {
+    "id": "fa58e8b4-5fe7-433f-b4a7-6f3611962e7e",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "b17a75d8-d38f-4e34-8396-ef2e191544d1",
+    "allowed": true
+  },
+  {
+    "id": "4f457770-2fe3-47ca-9b40-c2a9651f6657",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "564d9d38-37be-41ae-a18f-33b4317da8af",
+    "allowed": true
+  },
+  {
+    "id": "94b5731c-ed54-4f27-a6fd-dca9b80bdfaa",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "6fd98ed7-f4ab-40f9-819b-c877df2e62e7",
+    "allowed": true
+  },
+  {
+    "id": "228b83e5-66d3-44ee-8120-f9af76097999",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "cbd9d4e5-1dbe-4474-8ebc-72cab696d24b",
+    "allowed": true
+  },
+  {
+    "id": "ae827e20-d04a-4940-bed2-2e3f908160a9",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "8361132d-2aa3-46e6-b26b-1a675e44c643",
+    "allowed": true
+  },
+  {
+    "id": "2f44bc1e-94f3-4d0c-87af-afa7dbeb5c8c",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "c193a77c-f457-4842-8c86-33eb1356be09",
+    "allowed": true
+  },
+  {
+    "id": "f79ceba2-a428-4c05-bc94-5f77cebaebf4",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "8b1555c5-0541-4c60-ad10-68c991d37819",
+    "allowed": true
+  },
+  {
+    "id": "f04630fb-ba4b-407e-a5c5-383f697a4419",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "df8ca29e-9ace-4b8f-a365-c591a7191bb9",
+    "allowed": true
+  },
+  {
+    "id": "7c080afe-1db7-476f-aaf3-e410a2e1ad8a",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "f8e75656-1350-41f7-86bb-d9ace80dc83e",
+    "allowed": true
+  },
+  {
+    "id": "3ff1ebda-12cd-417d-a09b-a2a49b6cdbea",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "7e6eb133-b93f-44fe-bcee-f7d27ee9c4c6",
+    "allowed": true
+  },
+  {
+    "id": "078dca6b-dff8-4fee-b2fb-b954656d9ff3",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "d11ca584-74d1-4903-8ef7-4256d414c2b3",
+    "allowed": true
+  },
+  {
+    "id": "fa4d42f3-c71b-414a-ae5e-3d3ab8e81090",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "08ddd01c-0570-4a74-aa91-258670e4587f",
+    "allowed": true
+  },
+  {
+    "id": "56d794f4-a5fa-4051-8643-fc42df7be355",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "2fb3aaa0-72e8-4ee5-9e1d-5b3f52187a62",
+    "allowed": true
+  },
+  {
+    "id": "d31b00c7-46a2-444c-ab7c-b43567537373",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "permissionId": "1e2320ad-e91f-4d7c-98d1-2387aa7b1d11",
+    "allowed": true
+  },
+  {
+    "id": "e2d11ff7-edb7-4a6c-81f0-2a30ecf9f72b",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "b17a75d8-d38f-4e34-8396-ef2e191544d1",
+    "allowed": true
+  },
+  {
+    "id": "706cd625-9ba7-4c63-9e0c-4ddb93e1e1a6",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "564d9d38-37be-41ae-a18f-33b4317da8af",
+    "allowed": true
+  },
+  {
+    "id": "0e4b0a8e-a76c-4194-9665-f30bc68788c9",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "6fd98ed7-f4ab-40f9-819b-c877df2e62e7",
+    "allowed": true
+  },
+  {
+    "id": "6c9fd34d-847c-4cf6-96d6-d2ba0d621d0a",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "cbd9d4e5-1dbe-4474-8ebc-72cab696d24b",
+    "allowed": true
+  },
+  {
+    "id": "6c31a890-6bb2-4ca2-aca1-dd8b7e8262c0",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "a1efa9b3-b627-4778-a5fa-197d5e5d46bb",
+    "allowed": true
+  },
+  {
+    "id": "1f4ccd86-d517-4c44-b118-dd5099060c5a",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "8361132d-2aa3-46e6-b26b-1a675e44c643",
+    "allowed": true
+  },
+  {
+    "id": "511c3b79-17ce-45a1-b301-0eef10c5202b",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "c193a77c-f457-4842-8c86-33eb1356be09",
+    "allowed": true
+  },
+  {
+    "id": "1e9cd503-a29b-4fd7-8412-877300fd39a2",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "8b1555c5-0541-4c60-ad10-68c991d37819",
+    "allowed": true
+  },
+  {
+    "id": "c5f95ea3-c0f5-4c56-b18a-2f1f78f404e3",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "df8ca29e-9ace-4b8f-a365-c591a7191bb9",
+    "allowed": true
+  },
+  {
+    "id": "f6785765-1c36-4b1f-b6b4-4b2a9532e433",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "f8e75656-1350-41f7-86bb-d9ace80dc83e",
+    "allowed": true
+  },
+  {
+    "id": "2b8d0dd9-111b-4ef5-b5cf-a6b1dd701ab4",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "7e6eb133-b93f-44fe-bcee-f7d27ee9c4c6",
+    "allowed": true
+  },
+  {
+    "id": "554b6015-e6e0-44ba-8207-bae64f7a17a4",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "d11ca584-74d1-4903-8ef7-4256d414c2b3",
+    "allowed": true
+  },
+  {
+    "id": "07f8d22b-13f8-42db-8484-ae80d2002277",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "08ddd01c-0570-4a74-aa91-258670e4587f",
+    "allowed": true
+  },
+  {
+    "id": "48b23dbe-fd0f-4d81-b4aa-f871402a3fca",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "2fb3aaa0-72e8-4ee5-9e1d-5b3f52187a62",
+    "allowed": true
+  },
+  {
+    "id": "4692ecfe-7fa5-41db-b454-fca75e5cad0b",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "permissionId": "1e2320ad-e91f-4d7c-98d1-2387aa7b1d11",
+    "allowed": true
+  }
+]

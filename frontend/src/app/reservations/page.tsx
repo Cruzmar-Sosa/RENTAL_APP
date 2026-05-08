@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Calendar, Bike as BikeIcon, User as UserIcon, CheckCircle, XCircle, Clock, Play, Ban, Eye } from 'lucide-react';
+import { Calendar, Bike as BikeIcon, User as UserIcon, CheckCircle, XCircle, Clock, Play, Ban, Eye, ShieldCheck, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { AccessDenied } from '@/components/ui/access-denied';
@@ -60,7 +60,7 @@ export default function ReservationsAdminPage() {
   }, [isLoaded, refetch]);
 
   const actionMutation = useMutation({
-    mutationFn: async ({ id, type, data }: {id: string, type: 'start' | 'complete' | 'cancel' | 'report-incident', data?: any}) => {
+    mutationFn: async ({ id, type, data }: {id: string, type: 'check-in' | 'start' | 'complete' | 'settle' | 'cancel' | 'report-incident', data?: any}) => {
       return api.patch(`/reservations/${id}/${type}`, data);
     },
     onSuccess: (_, v) => { 
@@ -89,8 +89,11 @@ export default function ReservationsAdminPage() {
   const statusMap: Record<string, { color: string; icon: any }> = {
     PENDING: { color: 'bg-gray-100 text-gray-500 border-gray-200', icon: Clock },
     CONFIRMED: { color: 'bg-blue-100 text-blue-600 border-blue-200', icon: CheckCircle },
+    CHECKED_IN: { color: 'bg-indigo-100 text-indigo-600 border-indigo-200', icon: ShieldCheck },
     ACTIVE: { color: 'bg-emerald-100 text-emerald-600 border-emerald-300', icon: Play },
     COMPLETED: { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: CheckCircle },
+    SETTLEMENT_PENDING: { color: 'bg-orange-100 text-orange-600 border-orange-200', icon: DollarSign },
+    SETTLED: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle },
     CANCELLED: { color: 'bg-red-50 text-red-600 border-red-200', icon: Ban },
     NO_SHOW: { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: XCircle },
   };
@@ -166,8 +169,8 @@ export default function ReservationsAdminPage() {
            <span className="text-sm font-black text-gray-900">
             ${(r.priceActual || r.priceEstimated || 0).toFixed(2)}
            </span>
-           <span className="text-[10px] font-bold text-gray-400 uppercase">
-             {r.status === 'COMPLETED' ? 'Final' : 'Est.'}
+           <span className={cn("text-[10px] font-bold uppercase", r.financialStatus === 'PAID' ? 'text-emerald-500' : 'text-orange-400')}>
+             {r.financialStatus}
            </span>
         </div>
       ) 
@@ -194,7 +197,15 @@ export default function ReservationsAdminPage() {
                   {r.status === 'CONFIRMED' && (
                     <button 
                       onClick={() => handleOpenCheckIn(r)} 
-                      className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition"
+                      className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"
+                    >
+                      Check-In
+                    </button>
+                  )}
+                  {r.status === 'CHECKED_IN' && (
+                    <button 
+                      onClick={() => actionMutation.mutate({ id: r.id, type: 'start' })} 
+                      className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition"
                     >
                       Start Ride
                     </button>
@@ -204,7 +215,15 @@ export default function ReservationsAdminPage() {
                       onClick={() => handleOpenSettlement(r)} 
                       className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition"
                     >
-                      Settlement
+                      End Ride
+                    </button>
+                  )}
+                  {(r.status === 'SETTLEMENT_PENDING' || r.status === 'COMPLETED') && (
+                    <button 
+                      onClick={() => handleOpenSettlement(r)} 
+                      className="bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-700 transition"
+                    >
+                      Settle
                     </button>
                   )}
                 </>
@@ -241,9 +260,9 @@ export default function ReservationsAdminPage() {
   if (!canView('RESERVATIONS')) return <AccessDenied />;
 
   const totalS = reservations?.length || 0;
-  const activeR = reservations?.filter((r: any) => r.status === 'ACTIVE').length || 0;
-  const reservedR = reservations?.filter((r: any) => r.status === 'CONFIRMED').length || 0;
-  const completedR = reservations?.filter((r: any) => r.status === 'COMPLETED').length || 0;
+  const activeR = reservations?.filter((r: any) => r.status === 'ACTIVE' || r.status === 'CHECKED_IN').length || 0;
+  const reservedR = reservations?.filter((r: any) => r.status === 'CONFIRMED' || r.status === 'PENDING').length || 0;
+  const pendingSettle = reservations?.filter((r: any) => r.status === 'SETTLEMENT_PENDING' || r.status === 'COMPLETED').length || 0;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -257,12 +276,12 @@ export default function ReservationsAdminPage() {
           <h3 className="text-5xl font-black mt-2 text-emerald-500 leading-none">{activeR}</h3>
         </div>
         <div className="bg-white border-2 border-gray-100 p-6 rounded-[2rem] transition-transform hover:scale-[1.02]">
-          <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Confirmed</p>
+          <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Reserved</p>
           <h3 className="text-5xl font-black mt-2 text-blue-500 leading-none">{reservedR}</h3>
         </div>
         <div className="bg-white border-2 border-gray-100 p-6 rounded-[2rem] transition-transform hover:scale-[1.02]">
-          <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Finalized</p>
-          <h3 className="text-5xl font-black mt-2 text-gray-900 leading-none">{completedR}</h3>
+          <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">To Settle</p>
+          <h3 className="text-5xl font-black mt-2 text-orange-500 leading-none">{pendingSettle}</h3>
         </div>
       </div>
 
@@ -309,7 +328,7 @@ export default function ReservationsAdminPage() {
         onClose={() => setCheckInModalOpen(false)} 
         reservation={activeReservation} 
         onConfirm={async (id, data) => {
-          await actionMutation.mutateAsync({ id, type: 'start', data });
+          await actionMutation.mutateAsync({ id, type: 'check-in', data });
         }}
       />
 

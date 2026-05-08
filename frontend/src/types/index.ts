@@ -33,15 +33,37 @@ export interface Bike {
   station?: Station;
 }
 
+export type ReservationStatus = 
+  | 'PENDING' 
+  | 'CONFIRMED' 
+  | 'CHECKED_IN' 
+  | 'ACTIVE' 
+  | 'COMPLETED' 
+  | 'SETTLEMENT_PENDING' 
+  | 'SETTLED' 
+  | 'CANCELLED' 
+  | 'NO_SHOW';
+
+export type ReservationFinancialStatus = 
+  | 'PENDING' 
+  | 'PARTIALLY_PAID' 
+  | 'PAID' 
+  | 'REFUNDED' 
+  | 'FAILED';
+
 export interface Reservation {
   id: string;
   userId: string;
   bikeId: string;
-  status: 'PENDING' | 'CONFIRMED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  status: ReservationStatus;
+  financialStatus: ReservationFinancialStatus;
   startTime: string;
   endTime?: string;
   actualStart?: string;
   actualEnd?: string;
+  checkInAt?: string;
+  settledAt?: string;
+  settlementReference?: string;
   expiresAt?: string;
   priceEstimated?: number;
   priceActual?: number;

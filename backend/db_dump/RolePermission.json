@@ -1,0 +1,237 @@
+[
+  {
+    "id": "0da515b5-e337-4a0f-a118-0ddbdaac3717",
+    "role": "ADMIN",
+    "permissionId": "b17a75d8-d38f-4e34-8396-ef2e191544d1"
+  },
+  {
+    "id": "a180c5ec-a67d-48cd-b845-444e28c7c63d",
+    "role": "ADMIN",
+    "permissionId": "564d9d38-37be-41ae-a18f-33b4317da8af"
+  },
+  {
+    "id": "fe888c4d-189b-4319-94fa-796efeb13b57",
+    "role": "ADMIN",
+    "permissionId": "6fd98ed7-f4ab-40f9-819b-c877df2e62e7"
+  },
+  {
+    "id": "40068c39-e28c-48ee-a424-6e8962988ac0",
+    "role": "ADMIN",
+    "permissionId": "cbd9d4e5-1dbe-4474-8ebc-72cab696d24b"
+  },
+  {
+    "id": "11bd0905-35b8-47e5-80db-fd84f6cbecc8",
+    "role": "ADMIN",
+    "permissionId": "a1efa9b3-b627-4778-a5fa-197d5e5d46bb"
+  },
+  {
+    "id": "8cb71179-05cd-4f6c-a140-81539e04b88c",
+    "role": "ADMIN",
+    "permissionId": "548b1cab-1d28-46c1-bc12-3194dcbd294a"
+  },
+  {
+    "id": "33c6005b-92fc-4d87-a7b4-1ac0bbb5d181",
+    "role": "ADMIN",
+    "permissionId": "69a0cdc3-ebe6-4c6a-a0eb-5d0660ec65e3"
+  },
+  {
+    "id": "318e23d6-d19b-4ed7-8eeb-53ee2dd7ad9a",
+    "role": "ADMIN",
+    "permissionId": "ac618a83-3b03-468e-9823-1931b5fec256"
+  },
+  {
+    "id": "1c1b05c9-304e-424a-ac17-eae8b717e79c",
+    "role": "ADMIN",
+    "permissionId": "91e86968-9e9d-4f14-8885-6bec769ace31"
+  },
+  {
+    "id": "4912a371-210b-439c-bb57-e4c60ad71cda",
+    "role": "ADMIN",
+    "permissionId": "66f6a1fc-3572-4de3-85c1-26ad0489d8e5"
+  },
+  {
+    "id": "e4b20983-db5d-4ed2-8628-9884285472e6",
+    "role": "ADMIN",
+    "permissionId": "8361132d-2aa3-46e6-b26b-1a675e44c643"
+  },
+  {
+    "id": "ec5443a4-2efe-485d-a259-3cfed7591d73",
+    "role": "ADMIN",
+    "permissionId": "c193a77c-f457-4842-8c86-33eb1356be09"
+  },
+  {
+    "id": "51c2d911-c55a-446d-85ce-2f744494406e",
+    "role": "ADMIN",
+    "permissionId": "8b1555c5-0541-4c60-ad10-68c991d37819"
+  },
+  {
+    "id": "d4dd567d-4170-4b09-8a2f-c0f566663ef2",
+    "role": "ADMIN",
+    "permissionId": "df8ca29e-9ace-4b8f-a365-c591a7191bb9"
+  },
+  {
+    "id": "6e73a76e-9574-4da9-9b9f-48910b4d2431",
+    "role": "ADMIN",
+    "permissionId": "f8e75656-1350-41f7-86bb-d9ace80dc83e"
+  },
+  {
+    "id": "4a8bcd5b-b68b-452b-ab3b-f5ecdc966650",
+    "role": "ADMIN",
+    "permissionId": "7e6eb133-b93f-44fe-bcee-f7d27ee9c4c6"
+  },
+  {
+    "id": "56c91ffd-495a-43bc-b0ce-0de029425769",
+    "role": "ADMIN",
+    "permissionId": "d11ca584-74d1-4903-8ef7-4256d414c2b3"
+  },
+  {
+    "id": "73d25fbb-a269-476c-83e8-696cf7b59c7c",
+    "role": "ADMIN",
+    "permissionId": "08ddd01c-0570-4a74-aa91-258670e4587f"
+  },
+  {
+    "id": "3e7d4c3d-f6af-432b-b066-b333663ebe90",
+    "role": "ADMIN",
+    "permissionId": "2fb3aaa0-72e8-4ee5-9e1d-5b3f52187a62"
+  },
+  {
+    "id": "38fb2f32-304f-4ca8-913c-d5410be637d4",
+    "role": "ADMIN",
+    "permissionId": "1e2320ad-e91f-4d7c-98d1-2387aa7b1d11"
+  },
+  {
+    "id": "aecd8bbc-3104-446e-a95c-dcc996243d35",
+    "role": "ADMIN",
+    "permissionId": "e02c9fff-60ea-47b9-9694-1effcc091903"
+  },
+  {
+    "id": "809697f9-e5b0-4e40-bc9a-d0899b8860b4",
+    "role": "ADMIN",
+    "permissionId": "2e157285-5072-41f2-9de9-856b80984d96"
+  },
+  {
+    "id": "1fdba968-b6a7-48ca-b212-9f6b4a38169f",
+    "role": "ADMIN",
+    "permissionId": "d9255064-dd35-45e0-b372-49744c36f1bc"
+  },
+  {
+    "id": "5fc69645-4281-48db-866a-f7860546d3dc",
+    "role": "ADMIN",
+    "permissionId": "0e7b4d9a-5ad8-4d49-b47f-4c9c088c2e19"
+  },
+  {
+    "id": "3f73cac3-b577-40cd-bea4-9cd1cc876f59",
+    "role": "ADMIN",
+    "permissionId": "aa86e2f8-b396-49fb-b7a6-d5a86ab5cf71"
+  },
+  {
+    "id": "183dd773-968f-409f-93ab-9e6d3261cc27",
+    "role": "USER",
+    "permissionId": "8361132d-2aa3-46e6-b26b-1a675e44c643"
+  },
+  {
+    "id": "af46bcdd-f265-462f-babf-e118d70ed43f",
+    "role": "USER",
+    "permissionId": "7e6eb133-b93f-44fe-bcee-f7d27ee9c4c6"
+  },
+  {
+    "id": "9e90a56c-a125-4173-a5c5-2a673d75a258",
+    "role": "USER",
+    "permissionId": "d11ca584-74d1-4903-8ef7-4256d414c2b3"
+  },
+  {
+    "id": "b4c6d163-6d86-4cd3-9f41-6367751faf15",
+    "role": "ADMIN",
+    "permissionId": "690306fe-1383-4e0a-986e-63ebba0e144d"
+  },
+  {
+    "id": "18173cc2-60e4-4f14-98c4-758af32491fe",
+    "role": "ADMIN",
+    "permissionId": "d9c62832-6040-4db2-b659-296cbf82ea00"
+  },
+  {
+    "id": "4b076d0c-11ac-46fa-91ae-6f51237c1c94",
+    "role": "ADMIN",
+    "permissionId": "f8abb66b-1189-4901-8a96-14492c8b77da"
+  },
+  {
+    "id": "e2ee5094-7126-4aaa-ac3b-1a8241d98fe5",
+    "role": "ADMIN",
+    "permissionId": "beadf13d-2e3a-4a58-8235-ec19eaacba5b"
+  },
+  {
+    "id": "0b35f561-c857-428b-91f3-a39f22a56db0",
+    "role": "ADMIN",
+    "permissionId": "cbf04338-2eba-4b09-a256-9ad28e4b383d"
+  },
+  {
+    "id": "3e40f2fc-44b9-4013-bb58-720ae8d3d6a3",
+    "role": "ADMIN",
+    "permissionId": "78ad3993-d9ae-4a11-ac83-d055ed31e29d"
+  },
+  {
+    "id": "e1cf6a2b-8e72-462c-b8bf-3c9ab30bf531",
+    "role": "ADMIN",
+    "permissionId": "61fde2b9-6e09-4bed-b9e3-7cf6fe9613e0"
+  },
+  {
+    "id": "7bbaeb71-d4ae-44ac-8973-5b686ce45efa",
+    "role": "ADMIN",
+    "permissionId": "a73b1578-7651-4c5c-88e1-8d6b49ffa40d"
+  },
+  {
+    "id": "ef1e9e52-c9be-4131-be29-d7887000b2ae",
+    "role": "ADMIN",
+    "permissionId": "05173b00-a438-4f83-88a3-72d507d80bfd"
+  },
+  {
+    "id": "d0bdbdd4-13d7-4159-90bf-cbb505b0fb16",
+    "role": "ADMIN",
+    "permissionId": "d557dd09-bf37-4581-89a1-999f73b87a50"
+  },
+  {
+    "id": "c6ec5ee0-5846-40a7-b60c-29cebafad8af",
+    "role": "ADMIN",
+    "permissionId": "ca6ddbc7-f62a-455e-9730-05e344c8dfb9"
+  },
+  {
+    "id": "cdbd1815-4aa1-4b9b-b1d5-94a281e1b6b2",
+    "role": "ADMIN",
+    "permissionId": "a1c67bbb-472d-4f8c-82c5-11e336f8b886"
+  },
+  {
+    "id": "b5a28777-5c88-4935-9bd5-9cc732a2d226",
+    "role": "ADMIN",
+    "permissionId": "88fbcccf-c732-4318-b84f-3e03f91fd622"
+  },
+  {
+    "id": "1103bd7f-1e62-4cef-b5f3-3273979d3573",
+    "role": "ADMIN",
+    "permissionId": "209850d5-eecf-4b1e-bc22-c79dac1e988b"
+  },
+  {
+    "id": "cc0a3296-0608-49d0-a00d-02dd785c4001",
+    "role": "ADMIN",
+    "permissionId": "68ca5387-fecc-4390-84a8-70022d934826"
+  },
+  {
+    "id": "ffc5321b-6b5c-4cfa-bbc2-cb50b331e113",
+    "role": "USER",
+    "permissionId": "78ad3993-d9ae-4a11-ac83-d055ed31e29d"
+  },
+  {
+    "id": "ffa05c2b-ad6b-4aca-9fa7-03b6bd11a3f5",
+    "role": "USER",
+    "permissionId": "a73b1578-7651-4c5c-88e1-8d6b49ffa40d"
+  },
+  {
+    "id": "3343de87-873c-4779-8f43-38aef395eaf4",
+    "role": "USER",
+    "permissionId": "ca6ddbc7-f62a-455e-9730-05e344c8dfb9"
+  },
+  {
+    "id": "96bca34f-6a78-455a-a99b-a87ac27fde99",
+    "role": "USER",
+    "permissionId": "88fbcccf-c732-4318-b84f-3e03f91fd622"
+  }
+]

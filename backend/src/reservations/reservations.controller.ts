@@ -3,7 +3,7 @@ import { ReservationsService } from './reservations.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
-import { CreateReservationDto, StartRideDto, CompleteRideDto, ReportIncidentDto } from './dto/create-reservation.dto';
+import { CreateReservationDto, StartRideDto, CompleteRideDto, ReportIncidentDto, SettleRideDto, CheckInDto } from './dto/create-reservation.dto';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('reservations')
@@ -31,14 +31,24 @@ export class ReservationsController {
     return this.reservationsService.findOne(id, req.user);
   }
 
+  @Patch(':id/check-in')
+  checkIn(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.reservationsService.checkIn(id, req.user, dto);
+  }
+
   @Patch(':id/start')
-  start(@Request() req: any, @Param('id') id: string, @Body() dto: StartRideDto) {
-    return this.reservationsService.start(id, req.user, dto);
+  start(@Request() req: any, @Param('id') id: string) {
+    return this.reservationsService.start(id, req.user);
   }
 
   @Patch(':id/complete')
   complete(@Request() req: any, @Param('id') id: string, @Body() dto: CompleteRideDto) {
     return this.reservationsService.complete(id, req.user, dto);
+  }
+
+  @Patch(':id/settle')
+  settle(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.reservationsService.settle(id, req.user, dto);
   }
 
   @Patch(':id/report-incident')

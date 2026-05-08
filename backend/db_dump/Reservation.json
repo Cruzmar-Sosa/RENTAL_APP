@@ -1,0 +1,74 @@
+[
+  {
+    "id": "8b764441-0715-49d5-8713-3785bd704435",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "bikeId": "a63c8e0e-eeac-4ec1-81e1-1b961d1f510c",
+    "status": "ACTIVE",
+    "startTime": "2026-05-08T16:00:00.000Z",
+    "endTime": "2026-05-08T18:00:00.000Z",
+    "createdAt": "2026-05-08T15:42:59.260Z",
+    "updatedAt": "2026-05-08T15:56:43.958Z",
+    "actualEnd": null,
+    "actualStart": "2026-05-08T15:56:43.897Z",
+    "priceActual": null,
+    "priceEstimated": 115,
+    "expiresAt": null,
+    "bikeCondition": "GOOD",
+    "bikeNotes": null,
+    "clientName": "User 1",
+    "clientPhone": null,
+    "extras": [
+      {
+        "name": "Premium Insurance",
+        "price": 15
+      }
+    ],
+    "extrasTotal": 15,
+    "guestDocument": null,
+    "guestName": null,
+    "guestPhone": null,
+    "incidentNotes": null,
+    "incidentType": null,
+    "ratePerHour": 50,
+    "termsAccepted": true,
+    "incidentCategory": null,
+    "incidentReportedAt": null,
+    "incidentReportedById": null
+  },
+  {
+    "id": "99745ded-df66-48ce-b1ea-727d7ae2163c",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "bikeId": "ID 001",
+    "status": "CANCELLED",
+    "startTime": "2026-05-08T16:15:00.000Z",
+    "endTime": "2026-05-08T19:15:00.000Z",
+    "createdAt": "2026-05-08T16:06:53.146Z",
+    "updatedAt": "2026-05-08T16:22:00.493Z",
+    "actualEnd": null,
+    "actualStart": null,
+    "priceActual": null,
+    "priceEstimated": 155,
+    "expiresAt": "2026-05-08T16:21:53.088Z",
+    "bikeCondition": null,
+    "bikeNotes": null,
+    "clientName": "User 0",
+    "clientPhone": null,
+    "extras": [
+      {
+        "name": "Extra Security Lock",
+        "price": 5
+      }
+    ],
+    "extrasTotal": 5,
+    "guestDocument": null,
+    "guestName": null,
+    "guestPhone": null,
+    "incidentNotes": null,
+    "incidentType": null,
+    "ratePerHour": 50,
+    "termsAccepted": false,
+    "incidentCategory": null,
+    "incidentReportedAt": null,
+    "incidentReportedById": null
+  }
+]

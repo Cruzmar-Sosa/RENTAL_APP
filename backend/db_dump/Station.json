@@ -1,0 +1,38 @@
+[
+  {
+    "id": "4355b05c-3a0e-4d74-9bd0-0105a4dc8652",
+    "code": 1,
+    "name": "León Central Park",
+    "latitude": 12.435,
+    "longitude": -86.878,
+    "address": "Frente a la Catedral de León",
+    "createdAt": "2026-03-31T22:59:46.798Z",
+    "updatedAt": "2026-03-31T22:59:46.798Z",
+    "capacity": 10,
+    "deletedAt": null
+  },
+  {
+    "id": "fcb00198-9f60-447b-9f4d-4a9e6292c137",
+    "code": 2,
+    "name": "Plaza Natura",
+    "latitude": 22.343,
+    "longitude": -100.25,
+    "address": "123 Main Street, Managua",
+    "createdAt": "2026-04-06T15:10:47.023Z",
+    "updatedAt": "2026-04-06T15:10:47.023Z",
+    "capacity": 10,
+    "deletedAt": null
+  },
+  {
+    "id": "6db944c7-5519-4a88-bdfa-ce56108b7561",
+    "code": 3,
+    "name": "MetroCentro",
+    "latitude": 12.127763,
+    "longitude": -86264787,
+    "address": "Metrocentro Managua",
+    "createdAt": "2026-04-30T23:13:27.419Z",
+    "updatedAt": "2026-04-30T23:13:27.419Z",
+    "capacity": 30,
+    "deletedAt": null
+  }
+]

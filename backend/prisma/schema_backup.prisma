@@ -148,11 +148,11 @@ model Reservation {
   settledAt      DateTime?                           // when financial closure occurred
   
   expiresAt      DateTime?                           // expiration for PENDING reservations
-  priceEstimated Decimal?          @db.Decimal(10, 2)  // calculated on create
-  priceActual    Decimal?          @db.Decimal(10, 2)  // calculated on complete
+  priceEstimated Float?                              // calculated on create
+  priceActual    Float?                              // calculated on complete
 
   // ── Pricing ──
-  ratePerHour    Decimal?          @default(50)      @db.Decimal(10, 2) // editable rate at creation
+  ratePerHour    Float?            @default(50)      // editable rate at creation
 
   // ── Guest / Client snapshot (decoupled from auth user) ──
   clientName     String?                              // may differ from user.name
@@ -163,7 +163,7 @@ model Reservation {
 
   // ── Extras (snapshot — immutable after creation) ──
   extras         Json?                                // [{name:"Helmet",price:10},...]
-  extrasTotal    Decimal?          @default(0)       @db.Decimal(10, 2)
+  extrasTotal    Float?            @default(0)
 
   // ── Check-in (set at Start Ride) ──
   bikeCondition  String?                              // GOOD | REGULAR | DAMAGED
@@ -179,8 +179,8 @@ model Reservation {
   incidentReportedBy User?           @relation("IncidentReporter", fields: [incidentReportedById], references: [id])
 
   settlementReference String?        @unique
+
   payments       Payment[]
-  events         ReservationEvent[]
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -217,7 +217,7 @@ model Payment {
   reservation          Reservation   @relation(fields: [reservationId], references: [id])
   userId               String
   user                 User          @relation(fields: [userId], references: [id])
-  amount               Decimal       @db.Decimal(10, 2)
+  amount               Float
   currency             String        @default("USD")
   type                 PaymentType   @default(UPFRONT)
   status               PaymentStatus @default(PENDING)
@@ -274,53 +274,4 @@ model POI {
   routeId     String
   route       Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
-}
-
-// ─────────────────────────────────────────────
-// AUDIT & EVENT SOURCING
-// ─────────────────────────────────────────────
-
-model ReservationEvent {
-  id                    String            @id @default(uuid())
-  reservationId         String
-  reservation           Reservation       @relation(fields: [reservationId], references: [id])
-  
-  previousStatus        ReservationStatus?
-  nextStatus            ReservationStatus
-  
-  previousFinancialStatus ReservationFinancialStatus?
-  nextFinancialStatus    ReservationFinancialStatus
-  
-  eventType             String            // e.g., "STATUS_CHANGE", "SETTLEMENT", "INCIDENT"
-  metadata              Json?             // Additional data
-  
-  createdById           String?
-  correlationId         String?           // For distributed tracing
-  
-  timestamp             DateTime          @default(now())
-
-  @@index([reservationId])
-  @@index([correlationId])
-}
-
-model PaymentEvent {
-  id                String        @id @default(uuid())
-  paymentId         String
-  reservationId     String
-  
-  eventType         String        // e.g., "CREATED", "SUCCESS", "FAILED", "REFUNDED"
-  amount            Decimal       @db.Decimal(10, 2)
-  currency          String        @default("USD")
-  
-  provider          String?       // e.g., "STRIPE", "MANUAL"
-  providerReference String?
-  
-  statusBefore      PaymentStatus?
-  statusAfter       PaymentStatus
-  
-  metadata          Json?
-  timestamp         DateTime      @default(now())
-
-  @@index([paymentId])
-  @@index([reservationId])
 }

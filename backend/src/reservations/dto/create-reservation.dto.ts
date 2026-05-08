@@ -30,8 +30,6 @@ export class CreateReservationDto {
   @IsString()
   paymentOption?: 'DEPOSIT' | 'FULL' | 'LATER';
 
-  // ── New fields ──
-
   @IsOptional()
   @IsNumber()
   ratePerHour?: number;
@@ -44,12 +42,10 @@ export class CreateReservationDto {
   @IsString()
   clientPhone?: string;
 
-  /** Admin can create for another registered user */
   @IsOptional()
   @IsString()
   targetUserId?: string;
 
-  /** Walk-in guest fields (no account required) */
   @IsOptional()
   @IsString()
   guestName?: string;
@@ -62,7 +58,6 @@ export class CreateReservationDto {
   @IsString()
   guestPhone?: string;
 
-  /** Extras snapshot: [{name:"Helmet",price:10}] */
   @IsOptional()
   @IsArray()
   extras?: { name: string; price: number }[];
@@ -72,10 +67,10 @@ export class CreateReservationDto {
   extrasTotal?: number;
 }
 
-export class StartRideDto {
+export class CheckInDto {
   @IsOptional()
   @IsString()
-  bikeCondition?: string; // GOOD | REGULAR | DAMAGED
+  bikeCondition?: string;
 
   @IsOptional()
   @IsString()
@@ -86,30 +81,38 @@ export class StartRideDto {
   termsAccepted?: boolean;
 }
 
+export class StartRideDto {
+  @IsOptional()
+  @IsDateString()
+  actualStart?: string;
+}
+
 export class CompleteRideDto {
-  @IsOptional()
-  @IsNumber()
-  priceActual?: number;
-
-  @IsOptional()
-  @IsNumber()
-  balance?: number;
-
   @IsOptional()
   @IsDateString()
   actualEnd?: string;
 
   @IsOptional()
   @IsString()
-  incidentType?: string; // MECHANICAL | TECHNICAL | OTHER
+  incidentType?: string;
 
   @IsOptional()
   @IsString()
-  incidentCategory?: string; // COMPANY_FAULT | CUSTOMER_FAULT
+  incidentCategory?: string;
 
   @IsOptional()
   @IsString()
   incidentNotes?: string;
+
+  @IsOptional()
+  @IsNumber()
+  priceActual?: number;
+}
+
+export class SettleRideDto {
+  @IsOptional()
+  @IsString()
+  settlementReference?: string;
 }
 
 export class ReportIncidentDto {

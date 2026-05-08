@@ -1,0 +1,72 @@
+[
+  {
+    "id": "c563144d-c846-4769-a115-56690be89072",
+    "code": 2,
+    "email": "user@etours.com",
+    "password": "$2b$10$FpaWTxthAXJllNtzfoaCuehb7Qn/fNtaRwaGYtDzxOP7n4OHfy98O",
+    "name": "User 0",
+    "role": "USER",
+    "createdAt": "2026-03-31T22:59:46.188Z",
+    "updatedAt": "2026-04-17T23:25:06.692Z",
+    "deletedAt": null,
+    "phone": "",
+    "documentNumber": null,
+    "documentType": null
+  },
+  {
+    "id": "130f1fb3-b61f-41e4-a12b-f1f95aba2829",
+    "code": 1,
+    "email": "admin@etours.com",
+    "password": "$2b$10$UCvqpQjR5hdre39Oprb3CO1Wk/hOBWb4l1XpK.VLTIuC/eqSmmlCS",
+    "name": "Admin User 1",
+    "role": "ADMIN",
+    "createdAt": "2026-03-31T22:59:45.625Z",
+    "updatedAt": "2026-05-04T22:11:52.171Z",
+    "deletedAt": null,
+    "phone": "84272759",
+    "documentNumber": "15",
+    "documentType": "DNI"
+  },
+  {
+    "id": "850df735-1c30-4483-ab33-2077ee8b9a05",
+    "code": 5,
+    "email": "thechiquis@etours.com",
+    "password": "$2b$10$i0HFlxKqNiISa4YxkJb5OO4yTXvZRNVJQbv.19nyn61HKwhlzAf8i",
+    "name": "La Chiquis ",
+    "role": "USER",
+    "createdAt": "2026-05-05T00:42:50.929Z",
+    "updatedAt": "2026-05-05T00:42:50.929Z",
+    "deletedAt": null,
+    "phone": "+505 5801 0959",
+    "documentNumber": null,
+    "documentType": null
+  },
+  {
+    "id": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "code": 3,
+    "email": "user1@etours.com",
+    "password": "$2b$10$Yx9XD/FWfNI7YecXMvflAu7I.gW2I/J4PuuE6LPArDmXxe.4ZPD/y",
+    "name": "User 1",
+    "role": "USER",
+    "createdAt": "2026-04-08T20:32:48.699Z",
+    "updatedAt": "2026-05-05T16:38:51.895Z",
+    "deletedAt": null,
+    "phone": "",
+    "documentNumber": null,
+    "documentType": null
+  },
+  {
+    "id": "71089394-cf0f-47d6-a3e9-ee57ea2380f6",
+    "code": 4,
+    "email": "admin2@etours.com",
+    "password": "$2b$10$hDpNIoNB8kvxZTRlBcq3i.pDNIXuQrZ6z4ZfEP6Ue3pL7OxkrDDf6",
+    "name": "Admin User 2",
+    "role": "ADMIN",
+    "createdAt": "2026-04-08T20:44:45.214Z",
+    "updatedAt": "2026-05-07T16:26:06.058Z",
+    "deletedAt": null,
+    "phone": "",
+    "documentNumber": null,
+    "documentType": null
+  }
+]

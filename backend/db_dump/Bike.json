@@ -1,0 +1,101 @@
+[
+  {
+    "id": "MC. #2",
+    "code": 8,
+    "status": "AVAILABLE",
+    "stationId": "6db944c7-5519-4a88-bdfa-ce56108b7561",
+    "createdAt": "2026-04-30T23:14:29.823Z",
+    "updatedAt": "2026-05-06T03:29:54.169Z",
+    "batteryLevel": 100,
+    "deletedAt": null,
+    "model": "eTours Pro 26"
+  },
+  {
+    "id": "TEST 006",
+    "code": 6,
+    "status": "AVAILABLE",
+    "stationId": "fcb00198-9f60-447b-9f4d-4a9e6292c137",
+    "createdAt": "2026-04-08T22:03:19.477Z",
+    "updatedAt": "2026-05-07T15:47:17.667Z",
+    "batteryLevel": 45,
+    "deletedAt": null,
+    "model": "eTours Pro 2026"
+  },
+  {
+    "id": "MC. #1",
+    "code": 7,
+    "status": "AVAILABLE",
+    "stationId": "6db944c7-5519-4a88-bdfa-ce56108b7561",
+    "createdAt": "2026-04-30T23:13:55.817Z",
+    "updatedAt": "2026-05-07T15:48:37.823Z",
+    "batteryLevel": 100,
+    "deletedAt": null,
+    "model": "eTours Pro"
+  },
+  {
+    "id": "MC. #3",
+    "code": 9,
+    "status": "AVAILABLE",
+    "stationId": "6db944c7-5519-4a88-bdfa-ce56108b7561",
+    "createdAt": "2026-04-30T23:15:00.715Z",
+    "updatedAt": "2026-05-07T16:51:00.716Z",
+    "batteryLevel": 100,
+    "deletedAt": null,
+    "model": "eTours Pro"
+  },
+  {
+    "id": "6c2c86cf-f4c4-4e46-89bf-987a4db86aa6",
+    "code": 2,
+    "status": "AVAILABLE",
+    "stationId": "4355b05c-3a0e-4d74-9bd0-0105a4dc8652",
+    "createdAt": "2026-03-31T22:59:46.798Z",
+    "updatedAt": "2026-05-08T03:15:38.712Z",
+    "batteryLevel": 100,
+    "deletedAt": null,
+    "model": null
+  },
+  {
+    "id": "Unit 2",
+    "code": 5,
+    "status": "AVAILABLE",
+    "stationId": "fcb00198-9f60-447b-9f4d-4a9e6292c137",
+    "createdAt": "2026-04-06T16:17:25.700Z",
+    "updatedAt": "2026-05-08T15:07:51.609Z",
+    "batteryLevel": 100,
+    "deletedAt": null,
+    "model": null
+  },
+  {
+    "id": "a63c8e0e-eeac-4ec1-81e1-1b961d1f510c",
+    "code": 1,
+    "status": "IN_USE",
+    "stationId": "4355b05c-3a0e-4d74-9bd0-0105a4dc8652",
+    "createdAt": "2026-03-31T22:59:46.798Z",
+    "updatedAt": "2026-05-08T15:56:44.024Z",
+    "batteryLevel": 100,
+    "deletedAt": null,
+    "model": null
+  },
+  {
+    "id": "ID 001",
+    "code": 4,
+    "status": "AVAILABLE",
+    "stationId": "fcb00198-9f60-447b-9f4d-4a9e6292c137",
+    "createdAt": "2026-04-01T17:35:05.760Z",
+    "updatedAt": "2026-05-08T16:22:00.559Z",
+    "batteryLevel": 70,
+    "deletedAt": null,
+    "model": "eTours Pro"
+  },
+  {
+    "id": "15bbe7ca-5fe8-423d-b9ba-c1b3b855db83",
+    "code": 3,
+    "status": "AVAILABLE",
+    "stationId": "4355b05c-3a0e-4d74-9bd0-0105a4dc8652",
+    "createdAt": "2026-03-31T22:59:46.798Z",
+    "updatedAt": "2026-05-05T15:54:12.608Z",
+    "batteryLevel": 100,
+    "deletedAt": null,
+    "model": null
+  }
+]

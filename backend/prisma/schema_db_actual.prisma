@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Bike {
+  id           String         @id
+  code         Int            @unique @default(autoincrement())
+  status       BikeStatus     @default(AVAILABLE)
+  stationId    String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime
+  batteryLevel Int            @default(100)
+  deletedAt    DateTime?
+  model        String?
+  Station      Station?       @relation(fields: [stationId], references: [id])
+  BikeLocation BikeLocation[]
+  Reservation  Reservation[]
+}
+
+model BikeLocation {
+  id        String   @id
+  bikeId    String
+  latitude  Float
+  longitude Float
+  speed     Float    @default(0)
+  timestamp DateTime @default(now())
+  Bike      Bike     @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+
+  @@index([bikeId, timestamp])
+}
+
+model POI {
+  id          String   @id
+  name        String
+  description String?
+  latitude    Float
+  longitude   Float
+  routeId     String
+  createdAt   DateTime @default(now())
+  Route       Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                    String        @id
+  reservationId         String
+  userId                String
+  amount                Float
+  currency              String        @default("USD")
+  status                PaymentStatus @default(PENDING)
+  stripePaymentIntentId String?
+  paidAt                DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime
+  type                  PaymentType   @default(UPFRONT)
+  Reservation           Reservation   @relation(fields: [reservationId], references: [id])
+  User                  User          @relation(fields: [userId], references: [id])
+}
+
+model Permission {
+  id             String           @id
+  module         String
+  action         String
+  type           String
+  createdAt      DateTime         @default(now())
+  RolePermission RolePermission[]
+  UserPermission UserPermission[]
+
+  @@unique([module, action])
+}
+
+model Reservation {
+  id                                          String            @id
+  userId                                      String
+  bikeId                                      String
+  status                                      ReservationStatus @default(CONFIRMED)
+  startTime                                   DateTime          @default(now())
+  endTime                                     DateTime?
+  createdAt                                   DateTime          @default(now())
+  updatedAt                                   DateTime
+  actualEnd                                   DateTime?
+  actualStart                                 DateTime?
+  priceActual                                 Float?
+  priceEstimated                              Float?
+  expiresAt                                   DateTime?
+  bikeCondition                               String?
+  bikeNotes                                   String?
+  clientName                                  String?
+  clientPhone                                 String?
+  extras                                      Json?
+  extrasTotal                                 Float?            @default(0)
+  guestDocument                               String?
+  guestName                                   String?
+  guestPhone                                  String?
+  incidentNotes                               String?
+  incidentType                                String?
+  ratePerHour                                 Float?            @default(50)
+  termsAccepted                               Boolean?          @default(false)
+  incidentCategory                            String?
+  incidentReportedAt                          DateTime?
+  incidentReportedById                        String?
+  Payment                                     Payment[]
+  Bike                                        Bike              @relation(fields: [bikeId], references: [id])
+  User_Reservation_incidentReportedByIdToUser User?             @relation("Reservation_incidentReportedByIdToUser", fields: [incidentReportedById], references: [id])
+  User_Reservation_userIdToUser               User              @relation("Reservation_userIdToUser", fields: [userId], references: [id])
+}
+
+model RolePermission {
+  id           String     @id
+  role         Role
+  permissionId String
+  Permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+}
+
+model Route {
+  id          String          @id
+  name        String
+  description String?
+  difficulty  RouteDifficulty @default(EASY)
+  distanceKm  Float
+  durationMin Int
+  polyline    Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime
+  POI         POI[]
+}
+
+model Station {
+  id        String    @id
+  code      Int       @unique @default(autoincrement())
+  name      String
+  latitude  Float
+  longitude Float
+  address   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime
+  capacity  Int       @default(10)
+  deletedAt DateTime?
+  Bike      Bike[]
+}
+
+model User {
+  id                                                 String           @id
+  code                                               Int              @unique @default(autoincrement())
+  email                                              String           @unique
+  password                                           String
+  name                                               String?
+  role                                               Role             @default(USER)
+  createdAt                                          DateTime         @default(now())
+  updatedAt                                          DateTime
+  deletedAt                                          DateTime?
+  phone                                              String?
+  documentNumber                                     String?
+  documentType                                       DocumentType?
+  Payment                                            Payment[]
+  Reservation_Reservation_incidentReportedByIdToUser Reservation[]    @relation("Reservation_incidentReportedByIdToUser")
+  Reservation_Reservation_userIdToUser               Reservation[]    @relation("Reservation_userIdToUser")
+  UserPermission                                     UserPermission[]
+}
+
+model UserPermission {
+  id           String     @id
+  userId       String
+  permissionId String
+  allowed      Boolean
+  Permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  User         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+}
+
+enum BikeStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  RESERVED
+}
+
+enum DocumentType {
+  DNI
+  PASSPORT
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentType {
+  UPFRONT
+  DEPOSIT
+  POST_RIDE
+  BALANCE
+  REFUND
+}
+
+enum ReservationStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  PENDING
+  CONFIRMED
+  NO_SHOW
+}
+
+enum Role {
+  USER
+  ADMIN
+  INVITED
+}
+
+enum RouteDifficulty {
+  EASY
+  MODERATE
+  HARD
+}

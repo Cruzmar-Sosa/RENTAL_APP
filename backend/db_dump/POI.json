@@ -1,0 +1,29 @@
+[
+  {
+    "id": "4809bf28-9be0-4a99-89fb-905f1f0364d3",
+    "name": "Insigne y Real Basílica Catedral de la Asunción de la Bienaventurada Virgen María",
+    "description": "Catedral",
+    "latitude": 12.4350003522909,
+    "longitude": -86.8781117370351,
+    "routeId": "f55037db-0676-4aa5-825d-0fb038d426c9",
+    "createdAt": "2026-04-08T21:32:29.551Z"
+  },
+  {
+    "id": "b69bb36a-1c40-40a3-91b7-6d3945840cf2",
+    "name": "Pan & Paz - French Bakery",
+    "description": "Restaurante",
+    "latitude": 12.4361503378879,
+    "longitude": -86.8753429499739,
+    "routeId": "f55037db-0676-4aa5-825d-0fb038d426c9",
+    "createdAt": "2026-04-08T21:32:29.551Z"
+  },
+  {
+    "id": "dd917319-8750-4c2b-bc7f-08be8046f3e3",
+    "name": "Teatro Municipal José de la Cruz Mena",
+    "description": "Teatro Municipal de la Ciudad de León ",
+    "latitude": 12.4339134001435,
+    "longitude": -86.8806134193478,
+    "routeId": "f55037db-0676-4aa5-825d-0fb038d426c9",
+    "createdAt": "2026-04-08T21:32:29.551Z"
+  }
+]

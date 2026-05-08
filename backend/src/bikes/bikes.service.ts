@@ -28,6 +28,15 @@ export class BikesService {
   }
 
   async update(id: string, data: Prisma.BikeUpdateInput) {
+    // Architectural Guard: Prevent direct status modification
+    if (data.status) {
+      const { status, ...rest } = data;
+      return this.prisma.bike.update({
+        where: { id },
+        data: rest,
+      });
+    }
+
     return this.prisma.bike.update({
       where: { id },
       data,

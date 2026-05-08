@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, InternalServerErrorException, Logger, ForbiddenException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateReservationDto, StartRideDto, CompleteRideDto } from './dto/create-reservation.dto';
+import { CreateReservationDto, StartRideDto, CompleteRideDto, ReportIncidentDto, SettleRideDto, CheckInDto } from './dto/create-reservation.dto';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { ReservationLifecycleService } from './reservation-lifecycle.service';
 
@@ -24,50 +24,50 @@ export class ReservationsService {
       
       const effectiveUserId = dto.targetUserId || caller.sub;
       
-      // Strict Ownership: If targetUserId differs from caller, caller must be ADMIN
       if (effectiveUserId !== caller.sub && caller.role !== 'ADMIN') {
         throw new ForbiddenException('You do not have permission to create a reservation for another user.');
       }
 
-      const bike = await this.prisma.bike.findUnique({ where: { id: dto.bikeId } });
-      if (!bike || bike.status !== 'AVAILABLE') {
-        throw new BadRequestException('Bike is not available or does not exist');
-      }
-      if (bike.batteryLevel < 20) {
-        throw new BadRequestException('Bike battery too low to be reserved');
-      }
-
-      if (dto.documentType && dto.documentNumber && !dto.guestName) {
-        await this.prisma.user.update({
-          where: { id: effectiveUserId },
-          data: { documentType: dto.documentType, documentNumber: dto.documentNumber },
+      // ── Atomic check and lock ──
+      return await this.prisma.$transaction(async (tx) => {
+        // Lock bike record for update to prevent concurrent reservations
+        await tx.$queryRaw`SELECT * FROM "Bike" WHERE id = ${dto.bikeId} FOR UPDATE`;
+        
+        const bike = await tx.bike.findUnique({ 
+          where: { id: dto.bikeId }
         });
-      }
 
-      // Role check for ratePerHour
-      const rate = (caller.role === 'ADMIN' && dto.ratePerHour !== undefined) ? dto.ratePerHour : 50;
-      const startDate = dto.startTime ? new Date(dto.startTime) : new Date();
-      const endDate = dto.endTime ? new Date(dto.endTime) : new Date(startDate.getTime() + 2 * 3600000);
-      const totalHours = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / 3600000));
-      const extrasTotal = dto.extrasTotal ?? 0;
-      const priceEstimated = (rate * totalHours) + extrasTotal;
+        if (!bike || bike.status !== 'AVAILABLE') {
+          throw new BadRequestException('Bike is not available or does not exist');
+        }
+        if (bike.batteryLevel < 20) {
+          throw new BadRequestException('Bike battery too low to be reserved');
+        }
 
-      const isPaid = dto.paymentOption === 'FULL';
-      const isDeposit = dto.paymentOption === 'DEPOSIT';
-      const reservationStatus = (isPaid || isDeposit) ? 'CONFIRMED' : 'PENDING';
+        const rate = (caller.role === 'ADMIN' && dto.ratePerHour !== undefined) ? dto.ratePerHour : 50;
+        const startDate = dto.startTime ? new Date(dto.startTime) : new Date();
+        const endDate = dto.endTime ? new Date(dto.endTime) : new Date(startDate.getTime() + 2 * 3600000);
+        const totalHours = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / 3600000));
+        const extrasTotal = dto.extrasTotal ?? 0;
+        const priceEstimated = (rate * totalHours) + extrasTotal;
 
-      const expiresAt = dto.paymentOption === 'LATER'
-        ? new Date(Date.now() + 15 * 60 * 1000)
-        : (dto.expiresAt ? new Date(dto.expiresAt) : null);
+        const isPaid = dto.paymentOption === 'FULL';
+        const isDeposit = dto.paymentOption === 'DEPOSIT';
+        const reservationStatus = (isPaid || isDeposit) ? 'CONFIRMED' : 'PENDING';
+        const financialStatus = (isPaid || isDeposit) ? (isDeposit ? 'PARTIALLY_PAID' : 'PAID') : 'PENDING';
 
-      const depositAmount = isDeposit ? priceEstimated * 0.2 : priceEstimated;
+        const expiresAt = dto.paymentOption === 'LATER'
+          ? new Date(Date.now() + 15 * 60 * 1000)
+          : (dto.expiresAt ? new Date(dto.expiresAt) : null);
 
-      const [reservation] = await this.prisma.$transaction([
-        this.prisma.reservation.create({
+        const depositAmount = isDeposit ? priceEstimated * 0.2 : priceEstimated;
+
+        const reservation = await tx.reservation.create({
           data: {
             userId: effectiveUserId,
             bikeId: dto.bikeId,
             status: reservationStatus,
+            financialStatus: financialStatus,
             priceEstimated,
             ratePerHour: rate,
             startTime: startDate,
@@ -89,14 +89,16 @@ export class ReservationsService {
               },
             },
           },
-        }),
-        this.prisma.bike.update({
+        });
+
+        await tx.bike.update({
           where: { id: dto.bikeId },
           data: { status: 'RESERVED' },
-        }),
-      ]);
+        });
 
-      return reservation;
+        this.logger.log(`[CREATE] Success: Res ${reservation.id}, Bike ${dto.bikeId} -> RESERVED`);
+        return reservation;
+      });
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
       this.logger.error('[CREATE] Failed', error);
@@ -105,149 +107,241 @@ export class ReservationsService {
   }
 
   // ─────────────────────────────────────────────
-  // START RIDE (CHECK-IN)
+  // CHECK-IN (Physical Validation)
   // ─────────────────────────────────────────────
-  async start(id: string, caller: any, dto?: StartRideDto) {
+  async checkIn(id: string, caller: any, dto: any) {
     try {
-      this.logger.log(`[START] Starting ride for Reservation ${id}`);
-      
-      // USER CANNOT start rides
-      if (caller.role !== 'ADMIN') {
-         throw new ForbiddenException('Only administrators can initiate Check-in and Start Ride.');
-      }
+      this.logger.log(`[CHECK-IN] Initiating for Reservation ${id}`);
+      if (caller.role !== 'ADMIN') throw new ForbiddenException('Only admins can perform check-in');
 
-      const reservation = await this.prisma.reservation.findUnique({ where: { id } });
-      if (!reservation) throw new BadRequestException('Reservation not found');
+      return await this.prisma.$transaction(async (tx) => {
+        // Pessimistic Lock
+        await tx.$queryRaw`SELECT * FROM "Reservation" WHERE id = ${id} FOR UPDATE`;
+        
+        const reservation = await tx.reservation.findUnique({ where: { id } });
+        if (!reservation) throw new BadRequestException('Reservation not found');
 
-      // Valid Transitions
-      this.lifecycle.validateTransition(reservation.status, 'ACTIVE');
+        this.lifecycle.validateTransition(reservation.status, 'CHECKED_IN');
 
-      const bike = await this.prisma.bike.findUnique({ where: { id: reservation.bikeId } });
-      if (bike && bike.status === 'IN_USE') {
-        throw new BadRequestException('Bike is already in use by another rider.');
-      }
+        // Double Active Prevention
+        const otherActive = await tx.reservation.findFirst({
+          where: {
+            bikeId: reservation.bikeId,
+            status: { in: ['CHECKED_IN', 'ACTIVE'] },
+            id: { not: id }
+          }
+        });
+        if (otherActive) throw new BadRequestException('Bike is already in CHECKED_IN or ACTIVE status by another reservation');
 
-      if (dto?.termsAccepted === false) {
-        throw new BadRequestException('Terms and conditions must be accepted to start the ride.');
-      }
+        if (dto?.termsAccepted === false) {
+          throw new BadRequestException('Terms must be accepted');
+        }
 
-      const [updatedReservation] = await this.prisma.$transaction([
-        this.prisma.reservation.update({
+        const updated = await tx.reservation.update({
           where: { id },
           data: {
-            status: 'ACTIVE',
-            actualStart: new Date(),
+            status: 'CHECKED_IN',
+            checkInAt: new Date(),
             bikeCondition: dto?.bikeCondition || null,
             bikeNotes: dto?.bikeNotes || null,
             termsAccepted: dto?.termsAccepted ?? true,
-          },
-        }),
-        this.prisma.bike.update({
-          where: { id: reservation.bikeId },
-          data: { status: 'IN_USE' },
-        }),
-      ]);
+          }
+        });
 
-      return updatedReservation;
+        await tx.bike.update({
+          where: { id: reservation.bikeId },
+          data: { status: 'IN_USE' } // Block bike at check-in
+        });
+
+        this.logger.log(`[CHECK-IN] Success: Res ${id}, Bike ${reservation.bikeId} -> IN_USE (Blocked)`);
+        return updated;
+      });
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
-      this.logger.error('[START] Failed', error);
-      throw new InternalServerErrorException('Failed to start reservation');
+      this.logger.error('[CHECK-IN] Failed', error);
+      throw new InternalServerErrorException('Failed to perform check-in');
     }
   }
 
   // ─────────────────────────────────────────────
-  // COMPLETE RIDE (SETTLEMENT)
+  // START RIDE (Transition to ACTIVE)
+  // ─────────────────────────────────────────────
+  async start(id: string, caller: any) {
+    try {
+      this.logger.log(`[START-RIDE] Starting ride for Reservation ${id}`);
+      if (caller.role !== 'ADMIN') throw new ForbiddenException('Only admins can start rides');
+
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT * FROM "Reservation" WHERE id = ${id} FOR UPDATE`;
+        const reservation = await tx.reservation.findUnique({ where: { id } });
+        if (!reservation) throw new BadRequestException('Reservation not found');
+
+        this.lifecycle.validateTransition(reservation.status, 'ACTIVE');
+
+        const updated = await tx.reservation.update({
+          where: { id },
+          data: {
+            status: 'ACTIVE',
+            actualStart: new Date(),
+          }
+        });
+
+        this.logger.log(`[START-RIDE] Success: Res ${id} -> ACTIVE`);
+        return updated;
+      });
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
+      this.logger.error('[START-RIDE] Failed', error);
+      throw new InternalServerErrorException('Failed to start ride');
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // COMPLETE RIDE (Operational End)
   // ─────────────────────────────────────────────
   async complete(id: string, caller: any, dto?: CompleteRideDto) {
     try {
-      this.logger.log(`[SETTLEMENT] Initiating for Reservation ${id}`);
+      this.logger.log(`[COMPLETE-RIDE] Ending ride for Reservation ${id}`);
+      if (caller.role !== 'ADMIN') throw new ForbiddenException('Only admins can end rides');
 
-      // USER CANNOT complete rides
-      if (caller.role !== 'ADMIN') {
-         throw new ForbiddenException('Only administrators can perform ride settlement.');
-      }
-
-      const reservation = await this.prisma.reservation.findUnique({
-        where: { id },
-        include: { payments: true },
-      });
-
-      if (!reservation) throw new BadRequestException('Reservation not found');
-      
-      // Valid Transitions
-      this.lifecycle.validateTransition(reservation.status, 'COMPLETED');
-
-      const existingBalance = await this.prisma.payment.findFirst({
-        where: { reservationId: id, type: 'BALANCE' }
-      });
-      if (existingBalance) {
-        throw new BadRequestException('A balance payment already exists for this reservation');
-      }
-
-      const actualEnd = dto?.actualEnd ? new Date(dto.actualEnd) : new Date();
-      const isCompanyFault = dto?.incidentCategory === 'COMPANY_FAULT';
-      
-      const overridePrice = dto?.priceActual;
-      const isAdminOverride = overridePrice !== undefined;
-
-      const { balance, priceActual } = this.lifecycle.calculateFinancials(
-        reservation, 
-        actualEnd, 
-        isAdminOverride, 
-        overridePrice,
-        isCompanyFault
-      );
-
-      const payments: any[] = [];
-
-      if (balance > 0) {
-        payments.push({
-          amount: balance,
-          userId: reservation.userId,
-          status: 'PENDING',
-          type: 'BALANCE',
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT * FROM "Reservation" WHERE id = ${id} FOR UPDATE`;
+        const reservation = await tx.reservation.findUnique({ 
+          where: { id },
+          include: { payments: true }
         });
-        this.logger.log(`[SETTLEMENT] Generated BALANCE payment of $${balance} for Res ${id}`);
-      } else if (balance < 0) {
-        if (isCompanyFault || isAdminOverride || (dto?.incidentType && dto?.incidentType !== 'NONE')) {
-          payments.push({
-            amount: Math.abs(balance),
-            userId: reservation.userId,
-            status: 'PAID',
-            type: 'REFUND',
-          });
-          this.logger.log(`[SETTLEMENT] Generated REFUND of $${Math.abs(balance)} for Res ${id}`);
-        }
-      }
+        if (!reservation) throw new BadRequestException('Reservation not found');
 
-      const [updatedReservation] = await this.prisma.$transaction([
-        this.prisma.reservation.update({
+        this.lifecycle.validateTransition(reservation.status, 'COMPLETED');
+
+        const actualEnd = dto?.actualEnd ? new Date(dto.actualEnd) : new Date();
+        const isCompanyFault = dto?.incidentCategory === 'COMPANY_FAULT';
+        const { balance, priceActual } = this.lifecycle.calculateFinancials(
+          reservation, 
+          actualEnd, 
+          dto?.priceActual !== undefined, 
+          dto?.priceActual,
+          isCompanyFault
+        );
+
+        const targetStatus = balance !== 0 ? 'SETTLEMENT_PENDING' : 'SETTLED';
+
+        const updated = await tx.reservation.update({
           where: { id },
           data: {
-            status: 'COMPLETED',
+            status: 'COMPLETED', // Operational completion first
             actualEnd,
             priceActual,
             incidentType: dto?.incidentType || null,
             incidentCategory: dto?.incidentCategory || null,
             incidentNotes: dto?.incidentNotes || null,
-            payments: payments.length > 0
-              ? { create: payments }
-              : undefined,
-          },
-          include: { payments: true },
-        }),
-        this.prisma.bike.update({
-          where: { id: reservation.bikeId },
-          data: { status: 'AVAILABLE' },
-        }),
-      ]);
+          }
+        });
 
-      return updatedReservation;
+        // We don't release bike yet, we wait for settlement to be COMPLETED -> SETTLEMENT_PENDING -> SETTLED
+        // Actually, operational completion should move to SETTLEMENT_PENDING immediately if there is balance
+        await tx.reservation.update({
+          where: { id },
+          data: { status: targetStatus }
+        });
+
+        this.logger.log(`[COMPLETE-RIDE] Success: Res ${id} -> ${targetStatus}, priceActual: ${priceActual}`);
+        return updated;
+      });
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
-      this.logger.error('[SETTLEMENT] Failed', error);
-      throw new InternalServerErrorException('Failed to complete reservation');
+      this.logger.error('[COMPLETE-RIDE] Failed', error);
+      throw new InternalServerErrorException('Failed to complete ride');
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // SETTLE (Financial Closure)
+  // ─────────────────────────────────────────────
+  async settle(id: string, caller: any, dto?: SettleRideDto) {
+    try {
+      this.logger.log(`[SETTLE] Initiating financial closure for Reservation ${id}`);
+      if (caller.role !== 'ADMIN') throw new ForbiddenException('Only admins can settle');
+
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT * FROM "Reservation" WHERE id = ${id} FOR UPDATE`;
+        const reservation = await tx.reservation.findUnique({ 
+          where: { id },
+          include: { payments: true }
+        });
+        if (!reservation) throw new BadRequestException('Reservation not found');
+
+        // Idempotency Check
+        if (reservation.status === 'SETTLED') {
+          this.logger.warn(`[SETTLE] Reservation ${id} is already SETTLED. Skipping.`);
+          return reservation;
+        }
+
+        const { balance, priceActual } = this.lifecycle.calculateFinancials(
+          reservation, 
+          reservation.actualEnd || new Date()
+        );
+
+        const payments: any[] = [];
+        let finalFinancialStatus = reservation.financialStatus;
+
+        if (balance > 0) {
+          // Generate balance payment if it doesn't exist
+          const existingBalance = reservation.payments.find(p => p.type === 'BALANCE' && p.status === 'PENDING');
+          if (!existingBalance) {
+            payments.push({
+              amount: balance,
+              userId: reservation.userId,
+              status: 'PAID', // In this flow we assume admin marks it as paid manually or via stripe
+              type: 'BALANCE',
+            });
+            finalFinancialStatus = 'PAID';
+          } else {
+             // Update existing
+             await tx.payment.update({
+               where: { id: existingBalance.id },
+               data: { status: 'PAID' }
+             });
+             finalFinancialStatus = 'PAID';
+          }
+        } else if (balance < 0) {
+           payments.push({
+              amount: Math.abs(balance),
+              userId: reservation.userId,
+              status: 'PAID',
+              type: 'REFUND',
+            });
+            finalFinancialStatus = 'REFUNDED';
+        } else {
+          finalFinancialStatus = 'PAID';
+        }
+
+        // Validate settlement criteria
+        this.lifecycle.validateSettlement(finalFinancialStatus);
+
+        const updated = await tx.reservation.update({
+          where: { id },
+          data: {
+            status: 'SETTLED',
+            financialStatus: finalFinancialStatus,
+            settledAt: new Date(),
+            settlementReference: dto?.settlementReference || `SETTLE-${Date.now()}-${id.slice(0, 4)}`,
+            payments: payments.length > 0 ? { create: payments } : undefined,
+          }
+        });
+
+        await tx.bike.update({
+          where: { id: reservation.bikeId },
+          data: { status: 'AVAILABLE' }
+        });
+
+        this.logger.log(`[SETTLE] Success: Res ${id} -> SETTLED, Bike ${reservation.bikeId} -> AVAILABLE`);
+        return updated;
+      });
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
+      this.logger.error('[SETTLE] Failed', error);
+      throw new InternalServerErrorException('Failed to settle reservation');
     }
   }
 
@@ -300,20 +394,28 @@ export class ReservationsService {
       this.lifecycle.validateOwnership(reservation.userId, caller.sub, caller.role);
       this.lifecycle.validateTransition(reservation.status, 'CANCELLED');
 
-      const [updatedReservation] = await this.prisma.$transaction([
-        this.prisma.reservation.update({
+      const [updatedReservation] = await this.prisma.$transaction(async (tx) => {
+        // Pessimistic Lock
+        await tx.$queryRaw`SELECT * FROM "Reservation" WHERE id = ${id} FOR UPDATE`;
+        await tx.$queryRaw`SELECT * FROM "Bike" WHERE id = ${reservation.bikeId} FOR UPDATE`;
+
+        const res = await tx.reservation.update({
           where: { id },
           data: { status: 'CANCELLED' },
-        }),
-        this.prisma.bike.update({
+        });
+        
+        await tx.bike.update({
           where: { id: reservation.bikeId },
           data: { status: 'AVAILABLE' },
-        }),
-        this.prisma.payment.updateMany({
+        });
+
+        await tx.payment.updateMany({
           where: { reservationId: id, status: 'PENDING' },
           data: { status: 'FAILED' },
-        }),
-      ]);
+        });
+
+        return [res];
+      });
 
       return updatedReservation;
     } catch (error) {
@@ -400,20 +502,26 @@ export class ReservationsService {
       this.logger.log(`[Cron] Found ${expired.length} expired reservation(s) to cancel.`);
 
       for (const res of expired) {
-        await this.prisma.$transaction([
-          this.prisma.reservation.update({
+        await this.prisma.$transaction(async (tx) => {
+          // Lock records
+          await tx.$queryRaw`SELECT * FROM "Reservation" WHERE id = ${res.id} FOR UPDATE`;
+          await tx.$queryRaw`SELECT * FROM "Bike" WHERE id = ${res.bikeId} FOR UPDATE`;
+
+          await tx.reservation.update({
             where: { id: res.id },
             data: { status: 'CANCELLED' },
-          }),
-          this.prisma.bike.update({
+          });
+          
+          await tx.bike.update({
             where: { id: res.bikeId },
             data: { status: 'AVAILABLE' },
-          }),
-          this.prisma.payment.updateMany({
+          });
+          
+          await tx.payment.updateMany({
             where: { reservationId: res.id, status: 'PENDING' },
             data: { status: 'FAILED' },
-          }),
-        ]);
+          });
+        });
         
         this.trackingGateway.server.emit('reservation_expired', {
           bikeId: res.bikeId,

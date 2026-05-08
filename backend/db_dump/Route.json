@@ -1,0 +1,24 @@
+[
+  {
+    "id": "f55037db-0676-4aa5-825d-0fb038d426c9",
+    "name": "Centro Histórico Tour",
+    "description": "Recorre los monumentos históricos del Centro de León a bordo de una bici eléctrica.",
+    "difficulty": "EASY",
+    "distanceKm": 6.5,
+    "durationMin": 45,
+    "polyline": null,
+    "createdAt": "2026-04-08T21:32:29.551Z",
+    "updatedAt": "2026-04-08T21:32:29.551Z"
+  },
+  {
+    "id": "76fd047e-b60d-40c4-8969-1d1a878e7dc7",
+    "name": "Parque Ecológico",
+    "description": "Ruta natural entre áreas verdes con miradores y senderos.",
+    "difficulty": "MODERATE",
+    "distanceKm": 12.2,
+    "durationMin": 75,
+    "polyline": null,
+    "createdAt": "2026-04-08T21:32:29.974Z",
+    "updatedAt": "2026-04-08T21:32:29.974Z"
+  }
+]

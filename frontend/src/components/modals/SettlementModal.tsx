@@ -97,18 +97,26 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
 
     try {
       if (mode === 'admin') {
-        const actualStart = new Date(reservation.actualStart || reservation.startTime);
-        const actualEnd = isManualOverride 
-          ? new Date(actualStart.getTime() + (realDuration * 60 * 60 * 1000))
-          : now;
+        if (reservation.status === 'ACTIVE') {
+          // Operational Completion
+          const actualStart = new Date(reservation.actualStart || reservation.startTime);
+          const actualEnd = isManualOverride 
+            ? new Date(actualStart.getTime() + (realDuration * 60 * 60 * 1000))
+            : now;
 
-        await onConfirm?.(reservation.id, 'complete', {
-          priceActual: effectiveRealCost,
-          actualEnd: actualEnd.toISOString(),
-          incidentType: incidentType !== 'NONE' ? incidentType : null,
-          incidentCategory: incidentType !== 'NONE' ? incidentCategory : null,
-          incidentNotes: incidentType !== 'NONE' ? incidentNotes : null,
-        });
+          await onConfirm?.(reservation.id, 'complete', {
+            priceActual: effectiveRealCost,
+            actualEnd: actualEnd.toISOString(),
+            incidentType: incidentType !== 'NONE' ? incidentType : null,
+            incidentCategory: incidentType !== 'NONE' ? incidentCategory : null,
+            incidentNotes: incidentType !== 'NONE' ? incidentNotes : null,
+          });
+        } else if (reservation.status === 'SETTLEMENT_PENDING' || reservation.status === 'COMPLETED') {
+          // Financial Settlement
+          await onConfirm?.(reservation.id, 'settle', {
+            settlementReference: `SETTLE-UI-${Date.now()}`
+          });
+        }
       } else {
         // User Mode: Submitting an incident report
         if (incidentType !== 'NONE') {
@@ -121,7 +129,6 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
       onClose();
     } catch (error) {
       console.error('[SettlementModal] Error during action:', error);
-      // Re-enable on error so user can try again if it was a temporary network failure
       isSubmitting.current = false;
     } finally {
       setLoading(false);
@@ -392,13 +399,16 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
           <Button variant="outline" onClick={onClose} className="h-14 sm:h-16 rounded-2xl flex-1 border-2 font-bold text-base">
             Close
           </Button>
-          {(mode === 'admin' && reservation.status === 'ACTIVE') && (
+          {(mode === 'admin' && (reservation.status === 'ACTIVE' || reservation.status === 'SETTLEMENT_PENDING' || reservation.status === 'COMPLETED')) && (
             <Button 
               onClick={handleAction} 
-              disabled={loading || realDuration < 0}
+              disabled={loading || realDuration < 0 || reservation.status === 'COMPLETED'}
               className={cn(
                 "h-14 sm:h-16 rounded-2xl flex-2 font-black transition-all flex items-center justify-center gap-2 text-base",
-                "bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 shadow-xl shadow-emerald-100"
+                reservation.status === 'ACTIVE' 
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-100" 
+                  : "bg-orange-600 text-white hover:bg-orange-700 shadow-orange-100",
+                "hover:scale-[1.01] active:scale-95 shadow-xl"
               )}
             >
               {loading ? (
@@ -406,7 +416,7 @@ export function SettlementModal({ isOpen, onClose, reservation, onConfirm, mode 
               ) : (
                 <ShieldCheck size={20} />
               )}
-              Confirm & Close Ride
+              {reservation.status === 'ACTIVE' ? 'Confirm & Close Ride' : 'Confirm Financial Settlement'}
             </Button>
           )}
           {(mode === 'user' && incidentType !== 'NONE' && reservation.status !== 'COMPLETED') && (

@@ -1,0 +1,28 @@
+[
+  {
+    "id": "766e90be-d839-403c-a96a-7c69bba665c7",
+    "reservationId": "99745ded-df66-48ce-b1ea-727d7ae2163c",
+    "userId": "c563144d-c846-4769-a115-56690be89072",
+    "amount": 155,
+    "currency": "USD",
+    "status": "FAILED",
+    "stripePaymentIntentId": null,
+    "paidAt": null,
+    "createdAt": "2026-05-08T16:06:53.146Z",
+    "updatedAt": "2026-05-08T16:22:00.622Z",
+    "type": "UPFRONT"
+  },
+  {
+    "id": "98c3b99f-01e2-467c-92ee-746c9093c228",
+    "reservationId": "8b764441-0715-49d5-8713-3785bd704435",
+    "userId": "21852da2-a255-47e5-bdbf-304d31a500cb",
+    "amount": 23,
+    "currency": "USD",
+    "status": "PAID",
+    "stripePaymentIntentId": null,
+    "paidAt": null,
+    "createdAt": "2026-05-08T15:42:59.260Z",
+    "updatedAt": "2026-05-08T15:42:59.260Z",
+    "type": "DEPOSIT"
+  }
+]
