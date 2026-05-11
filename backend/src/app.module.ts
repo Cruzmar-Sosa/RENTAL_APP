@@ -13,11 +13,13 @@ import { TrackingModule } from './tracking/tracking.module';
 import { PaymentsModule } from './payments/payments.module';
 import { RoutesModule } from './routes/routes.module';
 import { AuditModule } from './audit/audit.module';
+import { StorageModule } from './common/storage/storage.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    StorageModule,
     AuditModule,
     PrismaModule,
     UsersModule,

@@ -371,11 +371,16 @@ export class ReservationsService {
           }
         });
 
+        const isTechnicalIncident = ['ACCIDENT', 'BREAKDOWN', 'TECHNICAL_FAULT'].includes(reservation.incidentCategory || '');
+
+        // BikeOperationalStatus: AVAILABLE | RESERVED | CHECKED_IN | IN_USE
+        // BikeOperationalStatus has NO OUT_OF_SERVICE — that lives in BikeTechnicalStatus
         await tx.bike.update({
           where: { id: reservation.bikeId },
-          data: { 
-            operationalStatus: 'AVAILABLE',
-            status: 'AVAILABLE'
+          data: {
+            operationalStatus: 'AVAILABLE',               // Always returns to fleet operationally
+            technicalStatus: isTechnicalIncident ? 'OUT_OF_SERVICE' : 'OK', // Technical flag if incident
+            status: isTechnicalIncident ? 'MAINTENANCE' : 'AVAILABLE',       // Legacy compatibility
           }
         });
 
@@ -384,7 +389,7 @@ export class ReservationsService {
           previousOperationalStatus: 'IN_USE',
           nextOperationalStatus: 'AVAILABLE',
           previousTechnicalStatus: 'OK',
-          nextTechnicalStatus: 'OK',
+          nextTechnicalStatus: isTechnicalIncident ? 'OUT_OF_SERVICE' : 'OK',
           eventType: 'OPERATIONAL_STATUS_CHANGED',
           source: 'SETTLEMENT',
           correlationId: id,
@@ -392,7 +397,8 @@ export class ReservationsService {
           tx
         });
 
-        this.logger.log(`[SETTLE] Success: Res ${id} -> SETTLED, Bike ${reservation.bikeId} -> AVAILABLE (Operational)`);
+        const nextTechLabel = isTechnicalIncident ? 'OUT_OF_SERVICE (incident)' : 'OK';
+        this.logger.log(`[SETTLE] Success: Res ${id} -> SETTLED, Bike ${reservation.bikeId} -> AVAILABLE / ${nextTechLabel}`);
         return updated;
       });
     } catch (error) {

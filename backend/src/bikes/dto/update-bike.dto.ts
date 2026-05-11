@@ -3,4 +3,6 @@ export class UpdateBikeDto {
   stationId?: string;
   model?: string;
   batteryLevel?: number;
+  imageUrl?: string;
+  imageKey?: string;
 }

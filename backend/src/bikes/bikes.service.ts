@@ -3,13 +3,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, BikeOperationalStatus, BikeTechnicalStatus, BikeEventType, BikeEventSource } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 
+import { BikeMediaService } from './bike-media.service';
+
 @Injectable()
 export class BikesService {
   private readonly logger = new Logger(BikesService.name);
 
   constructor(
     private prisma: PrismaService,
-    private audit: AuditService
+    private audit: AuditService,
+    private bikeMedia: BikeMediaService
   ) {}
 
   async create(data: Prisma.BikeCreateInput) {
@@ -17,20 +20,29 @@ export class BikesService {
   }
 
   async findAll() {
-    return this.prisma.bike.findMany({
+    const bikes = await this.prisma.bike.findMany({
       include: { station: true },
-      orderBy: [{ code: 'asc' }]
+      orderBy: [{ code: 'asc' }],
     });
+    // Derive imageUrl from imageKey at read-time — never stored in DB
+    return bikes.map((bike) => ({
+      ...bike,
+      imageUrl: bike.imageKey ? this.bikeMedia.buildPublicUrl(bike.imageKey) : null,
+    }));
   }
 
   async checkAvailability() {
-    return this.prisma.bike.findMany({
+    const bikes = await this.prisma.bike.findMany({
       where: { 
         operationalStatus: 'AVAILABLE',
         technicalStatus: 'OK'
       },
-      include: { station: true }
+      include: { station: true },
     });
+    return bikes.map((bike) => ({
+      ...bike,
+      imageUrl: bike.imageKey ? this.bikeMedia.buildPublicUrl(bike.imageKey) : null,
+    }));
   }
 
   async update(id: string, data: any, caller?: any, source: BikeEventSource = 'ADMIN', correlationId?: string) {
@@ -113,7 +125,39 @@ export class BikesService {
     });
   }
 
+  async uploadImage(id: string, file: Express.Multer.File) {
+    const bike = await this.prisma.bike.findUnique({ where: { id } });
+    if (!bike) throw new BadRequestException('Bike not found');
+
+    // 1. Clean up OLD image before uploading (prevent orphan files)
+    if (bike.imageKey) {
+      await this.bikeMedia.deleteImage(bike.imageKey);
+    }
+
+    // 2. Process, optimize, and upload — receives only the storage key
+    const { imageKey } = await this.bikeMedia.processAndUploadImage(
+      bike.code,
+      file,
+    );
+
+    // 3. Persist ONLY the imageKey — never the URL
+    const updated = await this.prisma.bike.update({
+      where: { id },
+      data: { imageKey, imageUrl: null }, // Clear any legacy imageUrl
+    });
+
+    // 4. Return with derived public URL for immediate frontend use
+    return {
+      ...updated,
+      imageUrl: this.bikeMedia.buildPublicUrl(imageKey),
+    };
+  }
+
   async remove(id: string) {
+    const bike = await this.prisma.bike.findUnique({ where: { id } });
+    if (bike?.imageKey) {
+      await this.bikeMedia.deleteImage(bike.imageKey);
+    }
     return this.prisma.bike.delete({ where: { id } });
   }
 }

@@ -83,6 +83,8 @@ model Bike {
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
   deletedAt         DateTime?
+  imageUrl          String?
+  imageKey          String?
   station           Station?              @relation(fields: [stationId], references: [id])
   events            BikeEvent[]
   locations         BikeLocation[]

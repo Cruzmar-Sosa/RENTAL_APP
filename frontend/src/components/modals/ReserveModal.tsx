@@ -16,12 +16,13 @@ interface ReserveModalProps {
   isOpen: boolean;
   onClose: () => void;
   bikeId: string | null;
+  bike?: any; // New optional bike object
   onConfirm: (payload: any) => Promise<void>;
   user: any; // Logged in user
   mode?: 'admin' | 'user';
 }
 
-export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }: ReserveModalProps) {
+export function ReserveModal({ isOpen, onClose, bikeId, bike, onConfirm, user, mode }: ReserveModalProps) {
   const currentMode = mode || (user?.role === 'ADMIN' ? 'admin' : 'user');
   
   // Start on step 2 for users, since step 1 is Identity (Admin only)
@@ -143,12 +144,21 @@ export function ReserveModal({ isOpen, onClose, bikeId, onConfirm, user, mode }:
       <div className="flex flex-col gap-6 mb-10">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <div className="bg-black text-white p-3 rounded-2xl shadow-xl">
-              <Bike size={28} />
+            <div className="bg-black text-white p-3 rounded-2xl shadow-xl overflow-hidden relative w-14 h-14 shrink-0">
+              {bike?.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={bike.imageUrl} alt="bike" className="w-full h-full object-cover" />
+              ) : (
+                <Bike size={28} className="absolute inset-0 m-auto" />
+              )}
             </div>
             <div className="flex flex-col">
-              <span className="text-3xl font-black tracking-tight">Reservation Wizard</span>
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Create New Rental Session</span>
+              <span className="text-3xl font-black tracking-tight">
+                {bike?.model || 'Reservation Wizard'}
+              </span>
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                Unit #{bike?.code || 'New Selection'} • {bike?.station?.name || 'León Central'}
+              </span>
             </div>
           </div>
           <div className="hidden sm:flex bg-gray-100 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">

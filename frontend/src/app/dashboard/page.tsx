@@ -14,6 +14,7 @@ import { io } from 'socket.io-client';
 import { ReserveModal } from '@/components/modals/ReserveModal';
 import { SettlementModal } from '@/components/modals/SettlementModal';
 import { CheckInModal } from '@/components/modals/CheckInModal';
+import { BikeCardPremium } from '@/components/bikes/BikeCardPremium';
 import { normalizeReservations } from '@/lib/financial-adapters';
 import { formatCurrency, calculateTotal, safeCurrency } from '@/lib/financial';
 
@@ -67,8 +68,11 @@ export default function DashboardPage() {
     };
   }, [authLoaded, user, refetch, refetchReservations]);
 
-  const handleOpenReserve = (bikeId: string) => {
-    setSelectedBikeId(bikeId);
+  const [selectedBike, setSelectedBike] = useState<any>(null);
+
+  const handleOpenReserve = (bike: any) => {
+    setSelectedBike(bike);
+    setSelectedBikeId(bike.id);
     setReserveModalOpen(true);
   };
 
@@ -280,37 +284,12 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {station.bikes?.map((bike: Bike) => (
-                    <div key={bike.id} className={`p-5 rounded-[1.5rem] flex flex-col gap-4 transition-all duration-300 border-2 ${
-                      bike.status === 'AVAILABLE' ? 'bg-gray-50/50 border-gray-100 hover:bg-white hover:border-black' :
-                      bike.status === 'RESERVED' ? 'bg-orange-50/30 border-orange-100 opacity-80' :
-                      bike.status === 'IN_USE' ? 'bg-emerald-50/30 border-emerald-100 opacity-80' :
-                      'bg-red-50/30 border-red-100 opacity-80'
-                    }`}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-gray-900 bg-white px-2 py-1 rounded-lg shadow-sm border border-gray-100">#{bike.code || '??'}</span>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-widest ${
-                            bike.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-700' :
-                            bike.status === 'RESERVED' ? 'bg-orange-100 text-orange-700' :
-                            bike.status === 'IN_USE' ? 'bg-blue-100 text-blue-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            {bike.status}
-                          </span>
-                          <Zap size={14} className={bike.batteryLevel && bike.batteryLevel > 20 ? 'text-amber-400 fill-amber-400' : 'text-red-400 fill-red-400'} />
-                        </div>
-                      </div>
-                      
-                      {bike.status === 'AVAILABLE' && (
-                        <button 
-                          onClick={() => handleOpenReserve(bike.id)}
-                          className="w-full bg-black text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-black/20"
-                        >
-                          Reserve Now
-                        </button>
-                      )}
-                    </div>
+                  {station.bikes?.map((bike: any) => (
+                    <BikeCardPremium 
+                      key={bike.id} 
+                      bike={{...bike, station}} 
+                      onReserve={() => handleOpenReserve({...bike, station})}
+                    />
                   ))}
                 </div>
               </div>
@@ -323,6 +302,7 @@ export default function DashboardPage() {
         isOpen={reserveModalOpen} 
         onClose={() => setReserveModalOpen(false)} 
         bikeId={selectedBikeId} 
+        bike={selectedBike}
         onConfirm={executeReservation} 
         user={user} 
       />

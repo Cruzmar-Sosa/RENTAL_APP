@@ -3,4 +3,6 @@ export class CreateBikeDto {
   status?: string;
   model?: string;
   batteryLevel?: number;
+  imageUrl?: string;
+  imageKey?: string;
 }

@@ -22,6 +22,8 @@ import { LoadingScreen } from '@/components/ui/loading-screen';
 import { AccessDenied } from '@/components/ui/access-denied';
 import { DataTablePro, DataTableColumn, DataTableFilter } from '@/components/ui/data-table-pro';
 import { useDataTable } from '@/hooks/useDataTable';
+import { BikeImageUpload } from '@/components/bikes/BikeImageUpload';
+import { getBikeImageUrl } from '@/lib/storageUtils';
 
 export default function BikesManagementPage() {
   const { canCreate, canUpdate, canDelete, canRead, isLoaded } = usePermissions();
@@ -130,8 +132,13 @@ export default function BikesManagementPage() {
       accessorKey: 'code',
       cell: (bike) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gray-100 rounded-lg text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">
-            <BikeIcon size={18} />
+          <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 flex items-center justify-center bg-gray-50 group-hover:border-black transition-colors shrink-0">
+            {getBikeImageUrl(bike) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={getBikeImageUrl(bike)!} alt={bike.model} className="w-full h-full object-cover" />
+            ) : (
+              <BikeIcon size={18} className="text-gray-400 group-hover:text-black transition-colors" />
+            )}
           </div>
           <div>
             <span className="font-mono text-sm font-bold text-gray-700 block">#{bike.code || (bike.id as string).slice(0, 8)}</span>
@@ -286,6 +293,19 @@ export default function BikesManagementPage() {
           </div>
 
           <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(formData); }} className="space-y-4">
+          {editingBike && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-gray-400">Unit Media</label>
+              <BikeImageUpload
+                bikeId={editingBike.id}
+                currentImageKey={editingBike.imageKey}
+                onUploadSuccess={(newKey, newUrl) => {
+                  setEditingBike({ ...editingBike, imageKey: newKey, imageUrl: newUrl });
+                  queryClient.invalidateQueries({ queryKey: ['admin-bikes'] });
+                }}
+              />
+            </div>
+          )}
           {!editingBike && (
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase text-gray-400">Hardware ID</label>

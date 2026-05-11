@@ -28,7 +28,13 @@ export interface Bike {
   code: number;
   model?: string;
   batteryLevel?: number;
+  // Legacy field (kept for compatibility)
   status: 'AVAILABLE' | 'RESERVED' | 'IN_USE' | 'MAINTENANCE';
+  // Dual-domain state model (authoritative)
+  operationalStatus: 'AVAILABLE' | 'RESERVED' | 'CHECKED_IN' | 'IN_USE';
+  technicalStatus: 'OK' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
+  imageUrl?: string | null;
+  imageKey?: string | null;
   stationId: string;
   station?: Station;
 }

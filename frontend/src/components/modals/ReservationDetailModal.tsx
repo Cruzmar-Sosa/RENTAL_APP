@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { formatNIDate } from '@/lib/dateUtils';
 import { normalizeReservation } from '@/lib/financial-adapters';
 import { formatCurrency, safeCurrency } from '@/lib/financial';
+import { getBikeImageUrl } from '@/lib/storageUtils';
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
@@ -161,6 +162,13 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Unit Information</h3>
               </div>
               
+              {getBikeImageUrl(reservation.bike ?? {}) && (
+                <div className="w-full aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-inner">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={getBikeImageUrl(reservation.bike ?? {})!} alt="bike" className="w-full h-full object-cover" />
+                </div>
+              )}
+
               <div className="flex justify-between items-end">
                 <div>
                   <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Assigned Code</p>

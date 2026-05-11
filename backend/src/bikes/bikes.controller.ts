@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { BikesService } from './bikes.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
@@ -41,6 +42,17 @@ export class BikesController {
   @Permissions('BIKES', 'DELETE')
   remove(@Param('id') id: string) {
     return this.bikesService.remove(id);
+  }
+
+  @Post(':id/image')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('BIKES', 'UPDATE')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.bikesService.uploadImage(id, file);
   }
 }
 
