@@ -284,7 +284,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {station.bikes?.map((bike: any) => (
+                  {station.bikes?.filter((b: any) => b.status === 'AVAILABLE' || b.operationalStatus === 'AVAILABLE').map((bike: any) => (
                     <BikeCardPremium 
                       key={bike.id} 
                       bike={{...bike, station}} 

@@ -84,7 +84,7 @@ export function BikeCardPremium({
       )}
     >
       {/* ── Image Section ── */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
+      <div className="relative aspect-4/3 overflow-hidden bg-gray-50">
         {imageUrl ? (
           <Image
             src={imageUrl}
@@ -94,11 +94,12 @@ export function BikeCardPremium({
             className="object-cover transition-transform duration-700 group-hover:scale-105"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-50">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+          <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-gray-100 to-gray-50">
+            <Image
               src="/bike_placeholder.png"
               alt="Bike placeholder"
+              width={160}
+              height={160}
               className="w-3/5 h-3/5 object-contain opacity-15 grayscale"
             />
           </div>
@@ -156,7 +157,7 @@ export function BikeCardPremium({
             </p>
           </div>
           <div className="text-right shrink-0">
-            <span className="text-base font-black text-black">$50</span>
+            <span className="text-base font-black text-black">$20</span>
             <span className="text-[10px] font-bold text-gray-400 uppercase block leading-tight">
               /hr
             </span>
