@@ -37,6 +37,15 @@ export default function DashboardPage() {
     }
   });
 
+  const { data: bikes, refetch: refetchBikes } = useQuery({
+    queryKey: ['dashboard-bikes'],
+    queryFn: async () => {
+      const res = await api.get('/bikes');
+      return res.data;
+    },
+    enabled: authLoaded
+  });
+
   const { data: adminReservations, isLoading: resLoading, refetch: refetchReservations } = useQuery({
     queryKey: ['dashboard-kpi-reservations'],
     queryFn: async () => {
@@ -60,6 +69,7 @@ export default function DashboardPage() {
       console.log('🔔 Reservation Expired Real-time:', data);
       toast.info(`Reservation #${data.reservationId.slice(0,8)} expired and bike was released.`);
       refetch();
+      refetchBikes();
       if (user?.role === 'ADMIN') refetchReservations();
     });
 
@@ -130,9 +140,7 @@ export default function DashboardPage() {
     </div>
   );
 
-  const availableBikesCount = stations?.reduce((acc: number, station: any) => 
-    acc + (station.bikes?.filter((b: any) => b.status === 'AVAILABLE').length || 0), 0
-  ) || 0;
+  const availableBikesCount = bikes?.filter((b: any) => b.status === 'AVAILABLE' || b.operationalStatus === 'AVAILABLE').length || 0;
 
   const totalRevenue = calculateTotal(adminReservations?.filter((res: any) => res.status === 'COMPLETED'), (res) => res.priceActual);
 
@@ -279,12 +287,12 @@ export default function DashboardPage() {
                     Available Fleet
                   </h3>
                   <span className="text-[10px] font-black bg-gray-100 px-3 py-1 rounded-lg uppercase">
-                    {station.bikes?.filter(b => b.status === 'AVAILABLE').length || 0} Units
+                    {bikes?.filter((b: any) => b.stationId === station.id && (b.status === 'AVAILABLE' || b.operationalStatus === 'AVAILABLE')).length || 0} Units
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {station.bikes?.filter((b: any) => b.status === 'AVAILABLE' || b.operationalStatus === 'AVAILABLE').map((bike: any) => (
+                  {bikes?.filter((b: any) => b.stationId === station.id && (b.status === 'AVAILABLE' || b.operationalStatus === 'AVAILABLE')).map((bike: any) => (
                     <BikeCardPremium 
                       key={bike.id} 
                       bike={{...bike, station}} 
