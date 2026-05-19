@@ -1,0 +1,18 @@
+const BeachTourismIcon = () => (
+  <svg
+    viewBox="0 0 64 64"
+    className="w-10 h-10"
+    fill="none"
+    stroke="white"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M42 12v24" />
+    <path d="M42 12c0 0-10 6-10 16" />
+    <path d="M42 12c0 0 10 6 10 16" />
+    <path d="M10 50c6-4 12-4 18 0s12 4 18 0 12-4 18 0" />
+  </svg>
+);
+
+export default BeachTourismIcon;

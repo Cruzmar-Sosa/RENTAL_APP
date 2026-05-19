@@ -1,0 +1,14 @@
+const VolcanoTourismIcon = () => (
+  <svg
+    viewBox="0 0 64 64"
+    className="w-10 h-10"
+    fill="none"
+    stroke="white"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M10 52L26 28L34 40L42 28L54 52Z"/>
+    <path d="M30 18l2-6m6 8l2-6m-10 2l2-4"/>
+  </svg>
+);

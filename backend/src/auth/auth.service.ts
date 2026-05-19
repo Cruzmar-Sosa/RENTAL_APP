@@ -14,8 +14,22 @@ export class AuthService {
 
   async register(data: any) {
     try {
+      // Sanitización básica
+      if (data.name) data.name = data.name.trim();
+      if (data.email) data.email = data.email.trim().toLowerCase();
+      if (data.phone) data.phone = data.phone.trim();
+
       const existing = await this.usersService.findByEmail(data.email);
       if (existing) throw new ConflictException('Este correo electrónico ya está en uso. Por favor ingresa otro o inicia sesión.');
+
+      if (data.phone) {
+        const existingPhone = await this.prisma.user.findFirst({
+          where: { phone: data.phone, deletedAt: null }
+        });
+        if (existingPhone) {
+          throw new ConflictException('Este número de teléfono ya está en uso. Por favor ingresa otro.');
+        }
+      }
 
       const user = await this.usersService.createUser(data);
       const payload = { sub: user.id, email: user.email, role: user.role };

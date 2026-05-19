@@ -42,6 +42,14 @@ export function Sidebar() {
   const { canView, isLoaded } = usePermissions();
   const { logout, permissions } = useAuthStore();
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 1024) {
+        setIsCollapsed(true);
+      }
+    }
+  }, []);
+
   // useMemo is a hook — must come BEFORE any conditional early returns
   const filteredItems = React.useMemo(() => {
     if (!isLoaded) return [];
