@@ -19,6 +19,7 @@ import { useDataTable } from '@/hooks/useDataTable';
 import { formatNIDate } from '@/lib/dateUtils';
 import { normalizeReservations } from '@/lib/financial-adapters';
 import { formatCurrency } from '@/lib/financial';
+import { getPresentationState } from '@/utils/states';
 
 export default function ReservationsAdminPage() {
   const { canRead, canView, isLoaded, canUpdate, isAdmin, user } = usePermissions();
@@ -89,19 +90,6 @@ export default function ReservationsAdminPage() {
     setSettlementModalOpen(true);
   };
 
-  const statusMap: Record<string, { color: string; icon: any }> = {
-    PENDING: { color: 'bg-gray-100 text-gray-500 border-gray-200', icon: Clock },
-    CONFIRMED: { color: 'bg-blue-100 text-blue-600 border-blue-200', icon: CheckCircle },
-    CHECKED_IN: { color: 'bg-indigo-100 text-indigo-600 border-indigo-200', icon: ShieldCheck },
-    ACTIVE: { color: 'bg-emerald-100 text-emerald-600 border-emerald-300', icon: Play },
-    COMPLETED: { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: CheckCircle },
-    SETTLEMENT_PENDING: { color: 'bg-orange-100 text-orange-600 border-orange-200', icon: DollarSign },
-    SETTLED: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle },
-    CANCELLED: { color: 'bg-red-50 text-red-600 border-red-200', icon: Ban },
-    NO_SHOW: { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: XCircle },
-  };
-  const getStatus = (s: string) => statusMap[s] || { color: 'bg-gray-50 text-gray-400 border-gray-100', icon: Clock };
-
   const table = useDataTable({ 
     data: reservations || [], 
     searchableKeys: ['id', 'user.email', 'user.name', 'bikeId', 'clientName', 'guestName'], 
@@ -114,16 +102,17 @@ export default function ReservationsAdminPage() {
       header: 'Reservation', 
       accessorKey: 'id', 
       cell: (r) => { 
-        const SI = getStatus(r.status as string).icon; 
+        const stateConfig = getPresentationState(r.status as string);
+        const SI = stateConfig.icon; 
         return (
           <div className="flex items-center gap-3">
-            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border", getStatus(r.status as string).color)}>
+            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border", stateConfig.color)}>
               <SI size={18} />
             </div>
             <div>
               <span className="font-bold text-gray-900 block truncate max-w-[80px]">#{(r.id as string).slice(0, 8)}</span>
-              <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider border inline-block mt-0.5", getStatus(r.status as string).color)}>
-                {r.status as string}
+              <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider border inline-block mt-0.5", stateConfig.color)}>
+                {stateConfig.label}
               </span>
             </div>
           </div>

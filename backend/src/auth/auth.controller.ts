@@ -1,4 +1,15 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Get,
+  UseGuards,
+  Request,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -26,4 +37,3 @@ export class AuthController {
     return this.authService.getMe(req.user.sub);
   }
 }
-

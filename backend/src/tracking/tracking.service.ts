@@ -7,7 +7,9 @@ export class TrackingService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateLocationDto) {
-    const bike = await this.prisma.bike.findUnique({ where: { id: data.bikeId } });
+    const bike = await this.prisma.bike.findUnique({
+      where: { id: data.bikeId },
+    });
     if (!bike) {
       throw new NotFoundException('Bike not found');
     }
@@ -25,7 +27,7 @@ export class TrackingService {
   async checkBikeExists(bikeId: string): Promise<boolean> {
     const bike = await this.prisma.bike.findUnique({
       where: { id: bikeId },
-      select: { id: true }
+      select: { id: true },
     });
     return !!bike;
   }

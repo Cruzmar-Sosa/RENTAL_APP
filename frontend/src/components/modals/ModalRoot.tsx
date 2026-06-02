@@ -7,6 +7,8 @@ import { CheckInModal } from './CheckInModal';
 import { SettlementModal } from './SettlementModal';
 import { PaymentModal } from './PaymentModal';
 import { ReservationDetailModal } from './ReservationDetailModal';
+import { CheckoutModal } from '@/components/CheckoutModal';
+import { PinEntryModal } from '@/components/PinEntryModal';
 
 export function ModalRoot() {
   const { type, data, isOpen, closeModal } = useModal();
@@ -58,6 +60,30 @@ export function ModalRoot() {
             isOpen={isOpen} 
             onClose={closeModal} 
             reservationId={data?.reservationId}
+          />
+        );
+      case 'CHECKOUT':
+        return (
+          <CheckoutModal
+            isOpen={isOpen}
+            bike={data?.bike}
+            reservationDetails={data?.reservationDetails}
+            isLoading={data?.isLoading}
+            error={data?.error}
+            onConfirm={data?.onConfirm}
+            onCancel={closeModal}
+          />
+        );
+      case 'PIN_ENTRY':
+        return (
+          <PinEntryModal
+            isOpen={isOpen}
+            reservationId={data?.reservationId}
+            isLoading={data?.isLoading}
+            error={data?.error}
+            onSubmit={data?.onSubmit}
+            onCancel={closeModal}
+            onResendPin={data?.onResendPin}
           />
         );
       default:

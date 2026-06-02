@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
@@ -7,14 +13,14 @@ import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 export class PermissionsGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
-    private prisma: PrismaService
+    private prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredPermission = this.reflector.getAllAndOverride<{ module: string, action: string }>(
-      PERMISSIONS_KEY,
-      [context.getHandler(), context.getClass()]
-    );
+    const requiredPermission = this.reflector.getAllAndOverride<{
+      module: string;
+      action: string;
+    }>(PERMISSIONS_KEY, [context.getHandler(), context.getClass()]);
 
     if (!requiredPermission) {
       return true; // No permission required
@@ -24,7 +30,9 @@ export class PermissionsGuard implements CanActivate {
     const user = request.user; // Appended by JwtAuthGuard
 
     if (!user) {
-      throw new ForbiddenException('You do not have permission to perform this action.');
+      throw new ForbiddenException(
+        'You do not have permission to perform this action.',
+      );
     }
 
     // 🔑 ADMIN BYPASS: Admins always have full access — no DB check needed
@@ -38,9 +46,9 @@ export class PermissionsGuard implements CanActivate {
         where: { id: user.sub },
         include: {
           permissions: {
-            include: { permission: true }
-          }
-        }
+            include: { permission: true },
+          },
+        },
       });
 
       if (!dbUser) {
@@ -51,20 +59,28 @@ export class PermissionsGuard implements CanActivate {
       const targetPermission = await this.prisma.permission.findFirst({
         where: {
           module: requiredPermission.module,
-          action: requiredPermission.action
-        }
+          action: requiredPermission.action,
+        },
       });
 
       if (!targetPermission) {
-        console.warn(`[PermissionsGuard] Permission not found in DB: ${requiredPermission.module} - ${requiredPermission.action}`);
-        throw new ForbiddenException(`Permission ${requiredPermission.action} on ${requiredPermission.module} does not exist in registry.`);
+        console.warn(
+          `[PermissionsGuard] Permission not found in DB: ${requiredPermission.module} - ${requiredPermission.action}`,
+        );
+        throw new ForbiddenException(
+          `Permission ${requiredPermission.action} on ${requiredPermission.module} does not exist in registry.`,
+        );
       }
 
       // 3. User override validation
-      const userOverride = dbUser.permissions.find(p => p.permissionId === targetPermission.id);
+      const userOverride = dbUser.permissions.find(
+        (p) => p.permissionId === targetPermission.id,
+      );
       if (userOverride) {
         if (userOverride.allowed) return true;
-        throw new ForbiddenException('Your access to this action was explicitly revoked.');
+        throw new ForbiddenException(
+          'Your access to this action was explicitly revoked.',
+        );
       }
 
       // 4. Role default validation
@@ -72,16 +88,18 @@ export class PermissionsGuard implements CanActivate {
         where: {
           role_permissionId: {
             role: dbUser.role as any,
-            permissionId: targetPermission.id
-          }
-        }
+            permissionId: targetPermission.id,
+          },
+        },
       });
 
       if (rolePermission) {
         return true;
       }
 
-      throw new ForbiddenException(`You lack the ${requiredPermission.module} - ${requiredPermission.action} permission.`);
+      throw new ForbiddenException(
+        `You lack the ${requiredPermission.module} - ${requiredPermission.action} permission.`,
+      );
     } catch (error) {
       if (error instanceof ForbiddenException) throw error;
       console.error('[PermissionsGuard] Unexpected error:', error);

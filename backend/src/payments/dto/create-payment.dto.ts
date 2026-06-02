@@ -1,4 +1,4 @@
 export class CreatePaymentDto {
-  reservationId: string;
-  amount: number;
+  reservationId!: string;
+  amount!: number;
 }

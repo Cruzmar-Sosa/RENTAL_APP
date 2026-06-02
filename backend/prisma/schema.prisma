@@ -19,6 +19,7 @@ model User {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   deletedAt         DateTime?
+  notifications     Notification[]
   payments          Payment[]
   reportedIncidents Reservation[]    @relation("IncidentReporter")
   reservations      Reservation[]
@@ -83,8 +84,9 @@ model Bike {
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
   deletedAt         DateTime?
-  imageUrl          String?
   imageKey          String?
+  imageUrl          String?
+  depositRequired   Boolean               @default(true)
   station           Station?              @relation(fields: [stationId], references: [id])
   events            BikeEvent[]
   locations         BikeLocation[]
@@ -137,6 +139,9 @@ model Reservation {
   settlementReference  String?                    @unique
   createdAt            DateTime                   @default(now())
   updatedAt            DateTime                   @updatedAt
+  checkInPin           String?
+  checkInVerifiedAt    DateTime?
+  paymentIntentId      String?
   payments             Payment[]
   bike                 Bike                       @relation(fields: [bikeId], references: [id])
   incidentReportedBy   User?                      @relation("IncidentReporter", fields: [incidentReportedById], references: [id])
@@ -158,32 +163,57 @@ model Payment {
   paidAt                DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
+  balanceRefund         Decimal?      @db.Decimal(10, 2)
+  depositAmount         Decimal?      @db.Decimal(10, 2)
+  settledAmount         Decimal?      @db.Decimal(10, 2)
   reservation           Reservation   @relation(fields: [reservationId], references: [id])
   user                  User          @relation(fields: [userId], references: [id])
 }
 
 model Route {
-  id          String          @id @default(uuid())
-  name        String
-  description String?
-  difficulty  RouteDifficulty @default(EASY)
-  distanceKm  Float
-  durationMin Int
-  polyline    Json?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  pois        POI[]
+  id                 String          @id @default(uuid())
+  name               String
+  description        String?
+  difficulty         RouteDifficulty @default(EASY)
+  distanceKm Float @default(0)
+  durationMin Int @default(0)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  thumbnail          String?
+  visibility         Boolean         @default(true)
+  navigationPolyline Json?
+  visualPolyline     Json?
+  pois               POI[]
 }
 
 model POI {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  latitude    Float
-  longitude   Float
-  routeId     String
-  createdAt   DateTime @default(now())
-  route       Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  latitude      Float
+  longitude     Float
+  routeId       String
+  createdAt     DateTime @default(now())
+  audioGuideUrl String?
+  category      String?
+  gallery       Json?
+  order         Int      @default(0)
+  route         Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
 }
 
 model ReservationEvent {

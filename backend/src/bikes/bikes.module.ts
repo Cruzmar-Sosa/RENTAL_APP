@@ -7,6 +7,6 @@ import { BikeMediaService } from './bike-media.service';
 @Module({
   providers: [BikesService, BikeReconciliationService, BikeMediaService],
   controllers: [BikesController],
-  exports: [BikesService, BikeMediaService]
+  exports: [BikesService, BikeMediaService],
 })
 export class BikesModule {}

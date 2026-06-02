@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
@@ -40,7 +50,10 @@ export class UsersController {
 
   @Patch(':id/permissions')
   @Permissions('SETTINGS', 'UPDATE')
-  updatePermissions(@Param('id') id: string, @Body() data: { permissions: any[] }) {
+  updatePermissions(
+    @Param('id') id: string,
+    @Body() data: { permissions: any[] },
+  ) {
     return this.usersService.updatePermissions(id, data.permissions);
   }
 

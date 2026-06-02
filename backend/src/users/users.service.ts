@@ -27,7 +27,7 @@ export class UsersService {
           phone: true,
           role: true,
           createdAt: true,
-        }
+        },
       });
     } catch (error) {
       console.error('[UsersService.createUser]', error);
@@ -59,7 +59,7 @@ export class UsersService {
           createdAt: true,
           updatedAt: true,
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
       console.error('[UsersService.findAll]', error);
@@ -137,7 +137,7 @@ export class UsersService {
           phone: true,
           role: true,
           updatedAt: true,
-        }
+        },
       });
     } catch (error) {
       console.error('[UsersService.update]', error);
@@ -150,7 +150,7 @@ export class UsersService {
       // Soft delete
       return this.prisma.user.update({
         where: { id },
-        data: { deletedAt: new Date() }
+        data: { deletedAt: new Date() },
       });
     } catch (error) {
       console.error('[UsersService.remove]', error);
@@ -158,7 +158,10 @@ export class UsersService {
     }
   }
 
-  async updatePermissions(userId: string, permissions: Array<{ module: string, action: string, allowed: boolean }>) {
+  async updatePermissions(
+    userId: string,
+    permissions: Array<{ module: string; action: string; allowed: boolean }>,
+  ) {
     try {
       return this.prisma.$transaction(async (tx) => {
         await tx.userPermission.deleteMany({ where: { userId } });
@@ -166,15 +169,22 @@ export class UsersService {
         if (permissions && permissions.length > 0) {
           const validPerms = await tx.permission.findMany({
             where: {
-              OR: permissions.map(p => ({ module: p.module, action: p.action }))
-            }
+              OR: permissions.map((p) => ({
+                module: p.module,
+                action: p.action,
+              })),
+            },
           });
 
-          const inserts = permissions.map(p => {
-            const matched = validPerms.find(v => v.module === p.module && v.action === p.action);
-            if (!matched) return null;
-            return { userId, permissionId: matched.id, allowed: p.allowed };
-          }).filter(Boolean);
+          const inserts = permissions
+            .map((p) => {
+              const matched = validPerms.find(
+                (v) => v.module === p.module && v.action === p.action,
+              );
+              if (!matched) return null;
+              return { userId, permissionId: matched.id, allowed: p.allowed };
+            })
+            .filter(Boolean);
 
           if (inserts.length > 0) {
             await tx.userPermission.createMany({ data: inserts as any });
@@ -182,7 +192,7 @@ export class UsersService {
         }
         return tx.user.findUnique({
           where: { id: userId },
-          include: { permissions: { include: { permission: true } } }
+          include: { permissions: { include: { permission: true } } },
         });
       });
     } catch (error) {

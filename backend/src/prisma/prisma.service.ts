@@ -7,16 +7,18 @@ import { PrismaPg } from '@prisma/adapter-pg';
 export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
     const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
-    
+
     if (!connectionString) {
-      console.error('[PrismaService] No connection string found in environment variables (DIRECT_URL or DATABASE_URL)');
+      console.error(
+        '[PrismaService] No connection string found in environment variables (DIRECT_URL or DATABASE_URL)',
+      );
     }
 
-    const pool = new Pool({ 
+    const pool = new Pool({
       connectionString,
-      ssl: { rejectUnauthorized: false }
+      ssl: { rejectUnauthorized: false },
     });
-    
+
     const adapter = new PrismaPg(pool as any);
     super({ adapter });
   }
@@ -26,7 +28,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       await this.$connect();
       console.log('[PrismaService] Connected to database successfully.');
     } catch (error) {
-      console.error('[PrismaService] Failed to connect to database:', error.message);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      console.error(
+        '[PrismaService] Failed to connect to database:',
+        errorMessage,
+      );
     }
   }
 }

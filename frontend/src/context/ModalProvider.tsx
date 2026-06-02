@@ -7,7 +7,9 @@ export type ModalType =
   | 'CHECK_IN'
   | 'SETTLEMENT'
   | 'PAYMENT_REVIEW'
-  | 'RESERVATION_DETAIL';
+  | 'RESERVATION_DETAIL'
+  | 'CHECKOUT'
+  | 'PIN_ENTRY';
 
 interface ModalStore {
   type: ModalType | null;

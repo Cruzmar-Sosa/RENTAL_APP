@@ -1,5 +1,5 @@
 export class CreateBikeDto {
-  stationId: string;
+  stationId!: string;
   status?: string;
   model?: string;
   batteryLevel?: number;

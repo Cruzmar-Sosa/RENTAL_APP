@@ -15,14 +15,16 @@ export class BikeReconciliationService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async handleReconciliation() {
-    this.logger.log('[Reconciliation] Starting Bike Operational Status Reconciliation...');
+    this.logger.log(
+      '[Reconciliation] Starting Bike Operational Status Reconciliation...',
+    );
 
     try {
       // 1. Find all bikes that are NOT AVAILABLE
       const busyBikes = await this.prisma.bike.findMany({
         where: {
-          operationalStatus: { in: ['RESERVED', 'CHECKED_IN', 'IN_USE'] }
-        }
+          operationalStatus: { in: ['RESERVED', 'CHECKED_IN', 'IN_USE'] },
+        },
       });
 
       if (busyBikes.length === 0) {
@@ -35,21 +37,23 @@ export class BikeReconciliationService {
         const activeReservation = await this.prisma.reservation.findFirst({
           where: {
             bikeId: bike.id,
-            status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'ACTIVE'] }
-          }
+            status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'ACTIVE'] },
+          },
         });
 
         // 3. If no active reservation exists, the bike status is drifted
         if (!activeReservation) {
-          this.logger.warn(`[Reconciliation] DRIFT DETECTED: Bike ${bike.code} is ${bike.operationalStatus} but has no active reservation. Resetting to AVAILABLE.`);
+          this.logger.warn(
+            `[Reconciliation] DRIFT DETECTED: Bike ${bike.code} is ${bike.operationalStatus} but has no active reservation. Resetting to AVAILABLE.`,
+          );
 
           await this.prisma.$transaction(async (tx) => {
             await tx.bike.update({
               where: { id: bike.id },
-              data: { 
+              data: {
                 operationalStatus: 'AVAILABLE',
-                status: 'AVAILABLE' // Legacy field
-              }
+                status: 'AVAILABLE', // Legacy field
+              },
             });
 
             await this.audit.recordBikeEvent({
@@ -60,8 +64,11 @@ export class BikeReconciliationService {
               nextTechnicalStatus: bike.technicalStatus,
               eventType: 'AUTO_SYNC',
               source: 'SYNC_ENGINE',
-              metadata: { reason: 'Reconciliation: No active reservation found for busy bike' },
-              tx
+              metadata: {
+                reason:
+                  'Reconciliation: No active reservation found for busy bike',
+              },
+              tx,
             });
           });
         }

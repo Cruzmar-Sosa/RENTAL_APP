@@ -106,10 +106,17 @@ function TableSkeleton({ columns, rows = 5 }: { columns: number; rows?: number }
   return (
     <>
       {Array.from({ length: rows }).map((_, i) => (
-        <tr key={i} className="animate-pulse">
+        <tr key={i} className="border-b border-gray-50/50">
           {Array.from({ length: columns }).map((_, j) => (
             <td key={j} className="px-6 py-5">
-              <div className="h-4 bg-gray-100 rounded-lg w-full" />
+              <div 
+                className="h-4 bg-gray-100 rounded-lg w-full animate-pulse" 
+                style={{ 
+                  animationDelay: `${(i * 0.1) + (j * 0.05)}s`,
+                  width: j === 0 ? '70%' : j === columns - 1 ? '40%' : '100%',
+                  opacity: 1 - (i * 0.1)
+                }} 
+              />
             </td>
           ))}
         </tr>

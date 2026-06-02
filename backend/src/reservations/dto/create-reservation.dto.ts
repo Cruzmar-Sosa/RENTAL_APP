@@ -1,10 +1,19 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsDateString, IsNumber, IsArray, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsDateString,
+  IsNumber,
+  IsArray,
+  IsBoolean,
+} from 'class-validator';
 import { DocumentType } from '@prisma/client';
 
 export class CreateReservationDto {
   @IsString()
   @IsNotEmpty()
-  bikeId: string;
+  bikeId!: string;
 
   @IsOptional()
   @IsDateString()
@@ -118,9 +127,9 @@ export class SettleRideDto {
 export class ReportIncidentDto {
   @IsString()
   @IsNotEmpty()
-  incidentType: string;
+  incidentType!: string;
 
   @IsOptional()
   @IsString()
-  incidentNotes?: string;
+  incidentNotes!: string;
 }

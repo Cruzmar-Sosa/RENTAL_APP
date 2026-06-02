@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { 
-  ReservationStatus, 
-  ReservationFinancialStatus, 
+import {
+  ReservationStatus,
+  ReservationFinancialStatus,
   PaymentStatus,
   BikeOperationalStatus,
   BikeTechnicalStatus,
   BikeEventType,
-  BikeEventSource
+  BikeEventSource,
 } from '@prisma/client';
 
 @Injectable()
@@ -46,7 +46,10 @@ export class AuditService {
         },
       });
     } catch (error) {
-      this.logger.error(`[AUDIT] Failed to record reservation event for ${data.reservationId}`, error);
+      this.logger.error(
+        `[AUDIT] Failed to record reservation event for ${data.reservationId}`,
+        error,
+      );
     }
   }
 
@@ -82,7 +85,10 @@ export class AuditService {
         },
       });
     } catch (error) {
-      this.logger.error(`[AUDIT] Failed to record payment event for payment ${data.paymentId}`, error);
+      this.logger.error(
+        `[AUDIT] Failed to record payment event for payment ${data.paymentId}`,
+        error,
+      );
     }
   }
 
@@ -118,7 +124,10 @@ export class AuditService {
         },
       });
     } catch (error) {
-      this.logger.error(`[AUDIT] Failed to record bike event for bike ${data.bikeId}`, error);
+      this.logger.error(
+        `[AUDIT] Failed to record bike event for bike ${data.bikeId}`,
+        error,
+      );
     }
   }
 }

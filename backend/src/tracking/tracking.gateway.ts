@@ -26,9 +26,11 @@ interface ActiveSession {
     origin: '*', // For development, in prod restrict this
   },
 })
-export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class TrackingGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private readonly logger = new Logger(TrackingGateway.name);
 
@@ -57,7 +59,7 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
       clearTimeout(session.timeoutRef);
     }
     this.activeSessions.delete(bikeId);
-    
+
     // Notify dashboard that bike is completely disconnected / session ended
     this.server.to('fleet_dashboard').emit('location_updated', {
       bikeId,
@@ -77,58 +79,64 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
   @SubscribeMessage('update_location')
   async handleUpdateLocation(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { bikeId: string; lat: number; lng: number; speed: number },
-  )
-  {
+    @MessageBody()
+    data: { bikeId: string; lat: number; lng: number; speed: number },
+  ) {
     this.logger.log(`📍 LOCATION RECEIVED: ${JSON.stringify(data)}`);
     const now = Date.now();
-    
+
     // 0. Bike Validation
     const bikeExists = await this.trackingService.checkBikeExists(data.bikeId);
     if (!bikeExists) {
-      this.logger.warn(`Rejected location update for unknown bike: ${data.bikeId}`);
-      client.emit('tracking_error', { message: '🚫 Bicicleta no encontrada en el sistema' });
+      this.logger.warn(
+        `Rejected location update for unknown bike: ${data.bikeId}`,
+      );
+      client.emit('tracking_error', {
+        message: '🚫 Bicicleta no encontrada en el sistema',
+      });
       return { error: 'Bike not found' };
     }
 
     // 1. Session Lock Validation
     let session = this.activeSessions.get(data.bikeId);
-    
+
     if (session && session.socketId !== client.id) {
-       // Ocupada por otro
-       client.emit('tracking_error', { message: "🚫 Tracking ya activo en otro dispositivo" });
-       return { error: 'Bike in use' };
+      // Ocupada por otro
+      client.emit('tracking_error', {
+        message: '🚫 Tracking ya activo en otro dispositivo',
+      });
+      return { error: 'Bike in use' };
     }
-    
+
     if (!session) {
-       // 2. New Session
-       session = {
-          socketId: client.id,
-          connection: 'connected',
-          lastUpdateAt: now,
-          lastDbUpdateAt: 0
-       };
-       this.activeSessions.set(data.bikeId, session);
-       this.socketToBike.set(client.id, data.bikeId);
+      // 2. New Session
+      session = {
+        socketId: client.id,
+        connection: 'connected',
+        lastUpdateAt: now,
+        lastDbUpdateAt: 0,
+      };
+      this.activeSessions.set(data.bikeId, session);
+      this.socketToBike.set(client.id, data.bikeId);
     } else {
-       // 3. Update Existing Session
-       session.connection = 'connected';
-       session.lastUpdateAt = now;
-       if (session.timeoutRef) clearTimeout(session.timeoutRef);
+      // 3. Update Existing Session
+      session.connection = 'connected';
+      session.lastUpdateAt = now;
+      if (session.timeoutRef) clearTimeout(session.timeoutRef);
     }
-    
-    // 4. Setup timeout for 7 seconds grace period to switch to 'disconnected' 
+
+    // 4. Setup timeout for 7 seconds grace period to switch to 'disconnected'
     // State doesn't remove session, just indicates connectivity loss
     session.timeoutRef = setTimeout(() => {
-       const s = this.activeSessions.get(data.bikeId);
-       if (s) {
-          s.connection = 'disconnected';
-          this.server.to('fleet_dashboard').emit('location_updated', {
-            bikeId: data.bikeId,
-            connection: 'disconnected',
-            timestamp: new Date().toISOString()
-          });
-       }
+      const s = this.activeSessions.get(data.bikeId);
+      if (s) {
+        s.connection = 'disconnected';
+        this.server.to('fleet_dashboard').emit('location_updated', {
+          bikeId: data.bikeId,
+          connection: 'disconnected',
+          timestamp: new Date().toISOString(),
+        });
+      }
     }, 7000);
 
     // 5. Throttle DB updates to max once every 3 seconds per bike
@@ -141,8 +149,11 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
           speed: data.speed || 0,
         });
         session.lastDbUpdateAt = now;
-      } catch (error) {
-        this.logger.error(`Failed to save location for bike ${data.bikeId}: ${error.message}`);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error(
+          `Failed to save location for bike ${data.bikeId}: ${message}`,
+        );
       }
     }
 
@@ -157,19 +168,19 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     });
 
     return { received: true };
-  } 
+  }
 
   @SubscribeMessage('stop_tracking')
   async handleStopTracking(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { bikeId: string }
+    @MessageBody() data: { bikeId: string },
   ) {
     this.logger.log(`🛑 Stop tracking received for bike ${data.bikeId}`);
     const session = this.activeSessions.get(data.bikeId);
-    
+
     if (session && session.socketId === client.id) {
-       this.clearSession(data.bikeId);
-       this.socketToBike.delete(client.id);
+      this.clearSession(data.bikeId);
+      this.socketToBike.delete(client.id);
     }
     return { status: 'stopped' };
   }

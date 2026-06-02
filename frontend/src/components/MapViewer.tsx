@@ -6,6 +6,8 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { io, Socket } from 'socket.io-client';
 import { cn } from '@/lib/utils';
+import { safeParsePolyline, isValidCoordinate } from '@/utils/geo';
+import { MapErrorBoundary } from './MapErrorBoundary';
 
 // Fix for default Leaflet icons in Webpack/Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -37,7 +39,7 @@ function FocusController({ locations, selectedBikeId }: { locations: Record<stri
   const loc = selectedBikeId ? locations[selectedBikeId] : null;
 
   useEffect(() => {
-    if (loc) {
+    if (loc && isValidCoordinate(loc.lat, loc.lng)) {
       map.flyTo([loc.lat, loc.lng], 17, { duration: 1.2 });
     }
   }, [selectedBikeId, loc?.lat, loc?.lng, map]);
@@ -49,7 +51,8 @@ interface MapViewerProps {
   onSocketStatusChange: (connected: boolean) => void;
   selectedRoute?: {
     id: string;
-    polyline: string; // JSON string of {lat, lng}[]
+    visualPolyline?: any;
+    navigationPolyline?: any;
   } | null;
 }
 
@@ -57,6 +60,11 @@ export default function MapViewer({ initialBikes, onSocketStatusChange, selected
   const [locations, setLocations] = useState<Record<string, LiveLocation>>({});
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedBikeId, setSelectedBikeId] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     // Definimos URL base vacia si no existe, o tomamos de entorno
@@ -102,15 +110,23 @@ export default function MapViewer({ initialBikes, onSocketStatusChange, selected
     }
   }, [initialBikes]);
 
-  const defaultCenter: [number, number] = [12.434318323316706, -86.88048488156197]; // Leon, Gto fallback Coordinates
-  const parsedPolyline = selectedRoute?.polyline ? JSON.parse(selectedRoute.polyline) : null;
-  const polylinePositions = parsedPolyline ? parsedPolyline.map((p: any) => [p.lat, p.lng]) : [];
+  const defaultCenter: [number, number] = [12.434950279249428, -86.87813296257922]; // León, Nicaragua default
+  const parsedPolyline = safeParsePolyline(selectedRoute?.navigationPolyline || selectedRoute?.visualPolyline);
+  const polylinePositions = parsedPolyline.map((p) => [p.lat, p.lng] as [number, number]);
+
+  if (!isMounted) {
+    return (
+      <div className="w-full h-full min-h-[300px] bg-slate-900/10 animate-pulse rounded-2xl flex items-center justify-center border border-slate-200/50">
+        <span className="text-slate-500 font-medium">Cargando mapa...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full" style={{ borderRadius: 'inherit' }}>
       
       {/* UI Overlay para Follow Mode */}
-      <div className="absolute top-4 right-4 z-[400] bg-white rounded-xl shadow-lg border p-3 flex flex-col gap-2 max-h-60 overflow-y-auto min-w-[200px]">
+      <div className="absolute top-4 right-4 z-400 bg-white rounded-xl shadow-lg border p-3 flex flex-col gap-2 max-h-60 overflow-y-auto min-w-[200px]">
         <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider mb-1">Active In-Use Units</h4>
         {Object.values(locations).map(loc => (
           <button 
@@ -133,51 +149,56 @@ export default function MapViewer({ initialBikes, onSocketStatusChange, selected
         )}
       </div>
 
-      <MapContainer
-        center={defaultCenter}
-        zoom={14}
-        style={{ height: '100%', width: '100%', borderRadius: 'inherit' }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+      <MapErrorBoundary>
+        <MapContainer
+          center={defaultCenter}
+          zoom={14}
+          style={{ height: '100%', width: '100%', borderRadius: 'inherit' }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-        {/* Focus dynamic control */}
-        <FocusController locations={locations} selectedBikeId={selectedBikeId} />
+          {/* Focus dynamic control */}
+          <FocusController locations={locations} selectedBikeId={selectedBikeId} />
 
-        {/* Render selected route */}
-        {selectedRoute && polylinePositions.length > 0 && (
-          <Polyline positions={polylinePositions} color="blue" weight={5} opacity={0.6} />
-        )}
+          {/* Render selected route */}
+          {selectedRoute && polylinePositions.length > 0 && (
+            <Polyline positions={polylinePositions} color="blue" weight={5} opacity={0.6} />
+          )}
 
-        {/* Render bike locations */}
-        {Object.values(locations).map((loc) => (
-          <div key={loc.bikeId}>
-            <CircleMarker 
-              center={[loc.lat, loc.lng]} 
-              radius={24} 
-              pathOptions={{
-                color: loc.connection === 'connected' ? '#22c55e' : '#9ca3af',
-                fillColor: loc.connection === 'connected' ? '#22c55e' : '#9ca3af',
-                fillOpacity: 0.2,
-                weight: 2,
-                opacity: 0.6
-              }}
-            />
-            <Marker position={[loc.lat, loc.lng]} icon={bikeIcon}>
-              <Popup>
-                <div className="font-bold">Bike #{loc.bikeId.slice(0, 8)}</div>
-                <div className="text-xs">Velocidad: {loc.speed} km/h</div>
-                <div className="text-[10px] text-gray-500 mt-1 uppercase font-bold">
-                  [{loc.connection === 'connected' ? 'ONLINE' : 'OFFLINE'}]
-                </div>
-                <div className="text-[10px] text-gray-400">Actualizado: {new Date(loc.timestamp).toLocaleTimeString()}</div>
-              </Popup>
-            </Marker>
-          </div>
-        ))}
-      </MapContainer>
+          {/* Render bike locations */}
+          {Object.values(locations).map((loc) => {
+            if (!isValidCoordinate(loc.lat, loc.lng)) return null;
+            return (
+              <div key={loc.bikeId}>
+                <CircleMarker 
+                  center={[loc.lat, loc.lng]} 
+                  radius={24} 
+                  pathOptions={{
+                    color: loc.connection === 'connected' ? '#22c55e' : '#9ca3af',
+                    fillColor: loc.connection === 'connected' ? '#22c55e' : '#9ca3af',
+                    fillOpacity: 0.2,
+                    weight: 2,
+                    opacity: 0.6
+                  }}
+                />
+                <Marker position={[loc.lat, loc.lng]} icon={bikeIcon}>
+                  <Popup>
+                    <div className="font-bold">Bike #{loc.bikeId.slice(0, 8)}</div>
+                    <div className="text-xs">Velocidad: {loc.speed} km/h</div>
+                    <div className="text-[10px] text-gray-500 mt-1 uppercase font-bold">
+                      [{loc.connection === 'connected' ? 'ONLINE' : 'OFFLINE'}]
+                    </div>
+                    <div className="text-[10px] text-gray-400">Actualizado: {new Date(loc.timestamp).toLocaleTimeString()}</div>
+                  </Popup>
+                </Marker>
+              </div>
+            );
+          })}
+        </MapContainer>
+      </MapErrorBoundary>
     </div>
   );
 }

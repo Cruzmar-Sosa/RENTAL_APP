@@ -66,14 +66,24 @@ export class BikeMediaService {
         'image/webp',
       );
 
-      this.logger.log(`[UPLOAD] Bike #${bikeCode} image stored at: ${result.path}`);
+      this.logger.log(
+        `[UPLOAD] Bike #${bikeCode} image stored at: ${result.path}`,
+      );
 
       // Return ONLY the key — URL is built from config in the service layer
       return { imageKey: result.path };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      this.logger.error(`[UPLOAD] Failed to process image for bike #${bikeCode}: ${error.message}`);
-      throw new BadRequestException('Image processing failed. Please try again.');
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.error(
+        `[UPLOAD] Failed to process image for bike #${bikeCode}: ${errorMessage}`,
+      );
+
+      throw new BadRequestException(
+        'Image processing failed. Please try again.',
+      );
     }
   }
 
@@ -87,7 +97,10 @@ export class BikeMediaService {
       await this.storageService.deleteFile(this.bucket, imageKey);
       this.logger.log(`[DELETE] Image removed: ${imageKey}`);
     } catch (error) {
-      this.logger.warn(`[DELETE] Could not delete image "${imageKey}": ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `[DELETE] Could not delete image "${imageKey}": ${errorMessage}`,
+      );
     }
   }
 

@@ -1,6 +1,12 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma, BikeOperationalStatus, BikeTechnicalStatus, BikeEventType, BikeEventSource } from '@prisma/client';
+import {
+  Prisma,
+  BikeOperationalStatus,
+  BikeTechnicalStatus,
+  BikeEventType,
+  BikeEventSource,
+} from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 
 import { BikeMediaService } from './bike-media.service';
@@ -12,7 +18,7 @@ export class BikesService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
-    private bikeMedia: BikeMediaService
+    private bikeMedia: BikeMediaService,
   ) {}
 
   async create(data: Prisma.BikeCreateInput) {
@@ -27,25 +33,35 @@ export class BikesService {
     // Derive imageUrl from imageKey at read-time — never stored in DB
     return bikes.map((bike) => ({
       ...bike,
-      imageUrl: bike.imageKey ? this.bikeMedia.buildPublicUrl(bike.imageKey) : null,
+      imageUrl: bike.imageKey
+        ? this.bikeMedia.buildPublicUrl(bike.imageKey)
+        : null,
     }));
   }
 
   async checkAvailability() {
     const bikes = await this.prisma.bike.findMany({
-      where: { 
+      where: {
         operationalStatus: 'AVAILABLE',
-        technicalStatus: 'OK'
+        technicalStatus: 'OK',
       },
       include: { station: true },
     });
     return bikes.map((bike) => ({
       ...bike,
-      imageUrl: bike.imageKey ? this.bikeMedia.buildPublicUrl(bike.imageKey) : null,
+      imageUrl: bike.imageKey
+        ? this.bikeMedia.buildPublicUrl(bike.imageKey)
+        : null,
     }));
   }
 
-  async update(id: string, data: any, caller?: any, source: BikeEventSource = 'ADMIN', correlationId?: string) {
+  async update(
+    id: string,
+    data: any,
+    caller?: any,
+    source: BikeEventSource = 'ADMIN',
+    correlationId?: string,
+  ) {
     return await this.prisma.$transaction(async (tx) => {
       // 1. Fetch current state for audit and validation
       const bike = await tx.bike.findUnique({ where: { id } });
@@ -53,7 +69,9 @@ export class BikesService {
 
       // 2. Architectural Guard: operationalStatus is READONLY from this service
       if (data.operationalStatus) {
-        throw new BadRequestException('Operational status must be managed via Reservation Lifecycle');
+        throw new BadRequestException(
+          'Operational status must be managed via Reservation Lifecycle',
+        );
       }
 
       // 3. Technical Recovery Guard
@@ -64,14 +82,17 @@ export class BikesService {
             bikeId: id,
             OR: [
               { incidentType: { not: null }, status: { not: 'SETTLED' } },
-              { bikeCondition: { in: ['REGULAR', 'DAMAGED'] }, status: { not: 'SETTLED' } }
-            ]
-          }
+              {
+                bikeCondition: { in: ['REGULAR', 'DAMAGED'] },
+                status: { not: 'SETTLED' },
+              },
+            ],
+          },
         });
 
         if (unresolvedReservations) {
           throw new BadRequestException(
-            `Technical Recovery Denied: Bike ${bike.code} has unresolved incidents or reported damage in Reservation ${unresolvedReservations.id}.`
+            `Technical Recovery Denied: Bike ${bike.code} has unresolved incidents or reported damage in Reservation ${unresolvedReservations.id}.`,
           );
         }
       }
@@ -92,7 +113,7 @@ export class BikesService {
           AVAILABLE: 'AVAILABLE',
           RESERVED: 'RESERVED',
           CHECKED_IN: 'IN_USE',
-          IN_USE: 'IN_USE'
+          IN_USE: 'IN_USE',
         };
         legacyStatus = opToLegacy[bike.operationalStatus];
       }
@@ -101,23 +122,29 @@ export class BikesService {
         where: { id },
         data: {
           ...data,
-          status: legacyStatus // Maintain legacy field
+          status: legacyStatus, // Maintain legacy field
         },
       });
 
       // 6. Record Audit Event
-      if (technicalChanged || data.batteryLevel !== undefined || data.stationId !== undefined) {
+      if (
+        technicalChanged ||
+        data.batteryLevel !== undefined ||
+        data.stationId !== undefined
+      ) {
         await this.audit.recordBikeEvent({
           bikeId: id,
           previousOperationalStatus: bike.operationalStatus,
           nextOperationalStatus: bike.operationalStatus,
           previousTechnicalStatus: bike.technicalStatus,
           nextTechnicalStatus: nextTechnicalStatus,
-          eventType: technicalChanged ? 'TECHNICAL_STATUS_CHANGED' : 'AUTO_SYNC',
+          eventType: technicalChanged
+            ? 'TECHNICAL_STATUS_CHANGED'
+            : 'AUTO_SYNC',
           source,
           correlationId,
           createdById: caller?.sub,
-          tx
+          tx,
         });
       }
 

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
@@ -145,17 +145,23 @@ async function main() {
         difficulty: 'EASY',
         distanceKm: 6.5,
         durationMin: 45,
-        polyline: JSON.stringify([
+        visualPolyline: [
           { lat: 21.1239, lng: -101.6832 },
           { lat: 21.1210, lng: -101.6811 },
           { lat: 21.1182, lng: -101.6793 },
           { lat: 21.1178, lng: -101.6790 }
-        ]),
+        ] as unknown as Prisma.InputJsonValue,
+        navigationPolyline: [
+          { lat: 21.1239, lng: -101.6832 },
+          { lat: 21.1210, lng: -101.6811 },
+          { lat: 21.1182, lng: -101.6793 },
+          { lat: 21.1178, lng: -101.6790 }
+        ] as unknown as Prisma.InputJsonValue,
         pois: {
           create: [
-            { name: 'Catedral de León', description: 'Punto de partida', latitude: 21.1239, longitude: -101.6832 },
-            { name: 'Jardín Unión', description: 'Corazón de la ciudad', latitude: 21.1182, longitude: -101.6793 },
-            { name: 'Teatro Juárez', description: 'Icono arquitectónico', latitude: 21.1178, longitude: -101.6790 },
+            { name: 'Catedral de León', description: 'Punto de partida', latitude: 21.1239, longitude: -101.6832, order: 0 },
+            { name: 'Jardín Unión', description: 'Corazón de la ciudad', latitude: 21.1182, longitude: -101.6793, order: 1 },
+            { name: 'Teatro Juárez', description: 'Icono arquitectónico', latitude: 21.1178, longitude: -101.6790, order: 2 },
           ]
         }
       }
@@ -168,11 +174,16 @@ async function main() {
         difficulty: 'MODERATE',
         distanceKm: 12.2,
         durationMin: 75,
-        polyline: JSON.stringify([
+        visualPolyline: [
           { lat: 21.1712, lng: -101.6853 },
           { lat: 21.1725, lng: -101.6865 },
           { lat: 21.1740, lng: -101.6850 },
-        ]),
+        ] as unknown as Prisma.InputJsonValue,
+        navigationPolyline: [
+          { lat: 21.1712, lng: -101.6853 },
+          { lat: 21.1725, lng: -101.6865 },
+          { lat: 21.1740, lng: -101.6850 },
+        ] as unknown as Prisma.InputJsonValue,
       }
     });
   } else {

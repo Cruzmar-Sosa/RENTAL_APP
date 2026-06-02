@@ -25,10 +25,12 @@ const dancingScript = Dancing_Script({
 });
 
 import { Toaster } from "sonner";
-import { Sidebar } from "@/components/ui/sidebar";
-import { Header } from "@/components/ui/header";
-
 import { ModalRoot } from "@/components/modals/ModalRoot";
+
+export const metadata: Metadata = {
+  title: "eTours León",
+  description: "Premium Electric Tourism Mobility",
+};
 
 export default function RootLayout({
   children,
@@ -43,13 +45,7 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="h-full flex bg-gray-50/50">
         <Providers>
-          <Sidebar />
-          <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-            <Header />
-            <div className="flex-1 overflow-y-auto">
-              {children}
-            </div>
-          </main>
+          {children}
           <Toaster position="top-right" richColors />
           <ModalRoot />
         </Providers>

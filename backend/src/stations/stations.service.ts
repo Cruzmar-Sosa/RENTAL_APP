@@ -1,27 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { CreateStationDto } from './dto/create-station.dto';
 
 @Injectable()
 export class StationsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: Prisma.StationCreateInput) {
-    return this.prisma.station.create({ data });
+  async create(data: CreateStationDto) {
+    return this.prisma.station.create({ data: data as any });
   }
 
   async findAll() {
     return this.prisma.station.findMany({
       include: {
-        bikes: true
-      }
+        bikes: true,
+      },
     });
   }
 
   async findOne(id: string) {
     return this.prisma.station.findUnique({
       where: { id },
-      include: { bikes: true }
+      include: { bikes: true },
     });
   }
 

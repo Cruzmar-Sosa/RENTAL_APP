@@ -121,10 +121,13 @@ export interface Route {
   id: string;
   name: string;
   description?: string;
+  thumbnail?: string;
+  visibility: boolean;
   difficulty: 'EASY' | 'MODERATE' | 'HARD';
   distanceKm: number;
   durationMin: number;
-  polyline?: any;
+  visualPolyline?: any;
+  navigationPolyline?: any;
   pois?: POI[];
 }
 
@@ -132,8 +135,12 @@ export interface POI {
   id: string;
   name: string;
   description?: string;
+  category?: string;
+  gallery?: any;
+  audioGuideUrl?: string;
   latitude: number;
   longitude: number;
+  order: number;
   routeId: string;
 }
 

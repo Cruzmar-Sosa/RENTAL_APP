@@ -4,15 +4,19 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class SupabaseStorageService {
-  private supabase: SupabaseClient;
+  private supabase!: SupabaseClient;
   private readonly logger = new Logger(SupabaseStorageService.name);
 
   constructor(private configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
-    const supabaseKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseKey = this.configService.get<string>(
+      'SUPABASE_SERVICE_ROLE_KEY',
+    );
 
     if (!supabaseUrl || !supabaseKey) {
-      this.logger.error('Supabase credentials missing in environment variables');
+      this.logger.error(
+        'Supabase credentials missing in environment variables',
+      );
     } else {
       this.supabase = createClient(supabaseUrl, supabaseKey);
     }

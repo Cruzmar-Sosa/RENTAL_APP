@@ -256,7 +256,7 @@ export default function StationsManagementPage() {
               <input 
                 type="number" step="any"
                 className="w-full bg-gray-50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-black/5 font-mono text-sm" 
-                placeholder="21.123"
+                placeholder="12.435"
                 value={formData.latitude}
                 onChange={e => setFormData({...formData, latitude: e.target.value})}
                 required
@@ -267,7 +267,7 @@ export default function StationsManagementPage() {
               <input 
                 type="number" step="any"
                 className="w-full bg-gray-50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-black/5 font-mono text-sm" 
-                placeholder="-101.456"
+                placeholder="-86.878"
                 value={formData.longitude}
                 onChange={e => setFormData({...formData, longitude: e.target.value})}
                 required

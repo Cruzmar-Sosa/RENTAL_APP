@@ -1,0 +1,159 @@
+export interface Coordinate {
+  lat: number;
+  lng: number;
+}
+
+export type Polyline = Coordinate[];
+
+export type GeometryType = 'COORDINATE_ARRAY' | 'ENCODED_POLYLINE';
+
+export interface RouteGeometry {
+  type: GeometryType;
+  coordinates: Coordinate[];
+  encodedString?: string;
+}
+
+/**
+ * Checks if a value is a valid latitude (-90 to 90)
+ */
+export function isValidLatitude(lat: any): boolean {
+  if (typeof lat !== 'number' || isNaN(lat) || !isFinite(lat)) return false;
+  return lat >= -90 && lat <= 90;
+}
+
+/**
+ * Checks if a value is a valid longitude (-180 to 180)
+ */
+export function isValidLongitude(lng: any): boolean {
+  if (typeof lng !== 'number' || isNaN(lng) || !isFinite(lng)) return false;
+  return lng >= -180 && lng <= 180;
+}
+
+/**
+ * Checks if coordinates are valid
+ */
+export function isValidCoordinate(lat: any, lng: any): boolean {
+  return isValidLatitude(lat) && isValidLongitude(lng);
+}
+
+/**
+ * Cleans coordinate float precision to 6 decimals to prevent float precision corruption
+ */
+export function normalizePrecision(val: number): number {
+  return Math.round(val * 1000000) / 1000000;
+}
+
+/**
+ * Safely parses any input format into a strict Coordinate array.
+ * Never throws, catches all errors, and filters out malformed points.
+ */
+export function safeParsePolyline(polyline: any): Coordinate[] {
+  if (!polyline) {
+    return [];
+  }
+
+  let parsed: any = polyline;
+
+  // Handle JSON string input
+  if (typeof polyline === 'string') {
+    const trimmed = polyline.trim();
+    if (!trimmed || trimmed === '[]' || trimmed === 'null' || trimmed === 'undefined') {
+      return [];
+    }
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch (e) {
+      console.warn('⚠️ [safeParsePolyline] Failed to parse JSON string:', e, trimmed);
+      return [];
+    }
+  }
+
+  // If after string parsing it is not an array, return empty
+  if (!Array.isArray(parsed)) {
+    console.warn('⚠️ [safeParsePolyline] Input is not an array after parsing:', parsed);
+    return [];
+  }
+
+  const validCoordinates: Coordinate[] = [];
+
+  for (let i = 0; i < parsed.length; i++) {
+    const item = parsed[i];
+    if (!item) continue;
+
+    let lat: number | undefined;
+    let lng: number | undefined;
+
+    // Object coordinates: { lat, lng } or { latitude, longitude }
+    if (typeof item === 'object' && !Array.isArray(item)) {
+      const rawLat = item.lat !== undefined ? item.lat : item.latitude;
+      const rawLng = item.lng !== undefined ? item.lng : item.longitude;
+
+      lat = typeof rawLat === 'number' ? rawLat : parseFloat(rawLat);
+      lng = typeof rawLng === 'number' ? rawLng : parseFloat(rawLng);
+    }
+    // Array coordinates: [lat, lng] or [lng, lat]
+    else if (Array.isArray(item) && item.length >= 2) {
+      const val1 = typeof item[0] === 'number' ? item[0] : parseFloat(item[0]);
+      const val2 = typeof item[1] === 'number' ? item[1] : parseFloat(item[1]);
+
+      // Detect Leaflet [lat, lng] or GeoJSON [lng, lat]
+      if (isValidCoordinate(val1, val2)) {
+        lat = val1;
+        lng = val2;
+      } else if (isValidCoordinate(val2, val1)) {
+        lat = val2;
+        lng = val1;
+      }
+    }
+
+    if (lat !== undefined && lng !== undefined && isValidCoordinate(lat, lng)) {
+      validCoordinates.push({
+        lat: normalizePrecision(lat),
+        lng: normalizePrecision(lng),
+      });
+    } else {
+      console.warn(`⚠️ [safeParsePolyline] Rejected invalid coordinate at index ${i}:`, item);
+    }
+  }
+
+  return validCoordinates;
+}
+
+/**
+ * Calculates total route distance in kilometers using the Haversine formula
+ */
+export function calculateDistanceKm(coords: Coordinate[]): number {
+  if (!coords || coords.length < 2) return 0;
+
+  let totalDist = 0;
+  const R = 6371; // Earth's radius in kilometers
+
+  for (let i = 0; i < coords.length - 1; i++) {
+    const p1 = coords[i];
+    const p2 = coords[i + 1];
+
+    const dLat = ((p2.lat - p1.lat) * Math.PI) / 180;
+    const dLng = ((p2.lng - p1.lng) * Math.PI) / 180;
+
+    const lat1Rad = (p1.lat * Math.PI) / 180;
+    const lat2Rad = (p2.lat * Math.PI) / 180;
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    totalDist += R * c;
+  }
+
+  return normalizePrecision(totalDist);
+}
+
+/**
+ * Estimates duration in minutes based on distance and average speed (default 12 km/h for leisure cycling)
+ */
+export function estimateDurationMin(distanceKm: number, speedKmh = 12): number {
+  if (distanceKm <= 0) return 0;
+  const timeHours = distanceKm / speedKmh;
+  return Math.max(1, Math.round(timeHours * 60));
+}
