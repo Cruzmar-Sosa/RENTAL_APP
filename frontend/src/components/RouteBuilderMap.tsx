@@ -14,7 +14,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Coordinate, isValidCoordinate } from '@/utils/geo';
 import { MapErrorBoundary } from './MapErrorBoundary';
-import { MapPin, Route as RouteIcon, RefreshCw, Maximize } from 'lucide-react';
+import { MapPin, Route as RouteIcon, RefreshCw, Maximize, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -178,6 +178,9 @@ export default function RouteBuilderMap({
   const [isMounted, setIsMounted] = useState(false);
   const [sequencedPoiIds, setSequencedPoiIds] = useState<string[]>([]);
   const [isRouting, setIsRouting] = useState(false);
+  const [routingSource, setRoutingSource] = useState<string | null>(null);
+  const [routingDistanceKm, setRoutingDistanceKm] = useState<number | null>(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   // Refs for debounce/abort/deduplication
   const lastPoiCoordsRef = useRef<string>('');
@@ -253,6 +256,8 @@ export default function RouteBuilderMap({
           if (!controller.signal.aborted) {
             const navCoords: Coordinate[] = res.data.coordinates || coords;
             onNavigationPolylineChange(navCoords);
+            setRoutingSource(res.data.source || null);
+            setRoutingDistanceKm(res.data.distanceKm ?? null);
             setIsRouting(false);
           }
         })
@@ -335,6 +340,57 @@ export default function RouteBuilderMap({
     setFitTrigger((prev) => prev + 1);
   };
 
+  const handleOptimizeSequence = async () => {
+    if (pois.length < 3 || !pois[0]?.routeId) return;
+    setIsOptimizing(true);
+    try {
+      const coords = pois
+        .filter((p) => p.order >= 0)
+        .sort((a, b) => a.order - b.order)
+        .map((p) => ({ lat: p.latitude, lng: p.longitude }));
+
+      if (coords.length < 3) {
+        toast.info('Se necesitan al menos 3 POIs secuenciados para optimizar.');
+        return;
+      }
+
+      const res = await api.post('/routes/optimize', { coordinates: coords });
+      const optimizedOrder: number[] = res.data.order;
+
+      // Map optimized indices back to POI ids
+      const sequenced = pois
+        .filter((p) => p.order >= 0)
+        .sort((a, b) => a.order - b.order);
+
+      const orders = optimizedOrder.map((origIdx, newIdx) => ({
+        id: sequenced[origIdx].id,
+        order: newIdx,
+      }));
+
+      // Keep unsequenced POIs at -1
+      const unsequenced = pois
+        .filter((p) => p.order < 0)
+        .map((p) => ({ id: p.id, order: -1 }));
+
+      await api.put(`/routes/${pois[0].routeId}/pois/reorder`, {
+        orders: [...orders, ...unsequenced],
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+      lastPoiCoordsRef.current = ''; // Force re-routing
+
+      const improvement = res.data.improvementPercent ?? 0;
+      toast.success(
+        `Secuencia optimizada: ${improvement}% de mejora en distancia total.`
+      );
+    } catch (err) {
+      console.error('Optimize error:', err);
+      toast.error('Error al optimizar la secuencia de POIs.');
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
   // ── Derived render data ──
   const visualPositions: [number, number][] = visualPolyline.map((c) => [
     c.lat,
@@ -404,15 +460,26 @@ export default function RouteBuilderMap({
 
         {/* Actions */}
         {mode === 'ROUTE' && (
-          <button
-            type="button"
-            onClick={handleResetSequence}
-            disabled={pois.length === 0}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-red-500 hover:bg-red-50 transition disabled:opacity-30 cursor-pointer"
-            title="Reset sequence"
-          >
-            <RefreshCw size={12} /> Reset Order
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={handleResetSequence}
+              disabled={pois.length === 0}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-red-500 hover:bg-red-50 transition disabled:opacity-30 cursor-pointer"
+              title="Reset sequence"
+            >
+              <RefreshCw size={12} /> Reset Order
+            </button>
+            <button
+              type="button"
+              onClick={handleOptimizeSequence}
+              disabled={pois.filter((p) => p.order >= 0).length < 3 || isOptimizing}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 transition disabled:opacity-30 cursor-pointer"
+              title="Optimize POI visitation order (Nearest Neighbor + 2-opt)"
+            >
+              <Zap size={12} /> {isOptimizing ? 'Optimizing...' : 'Optimize Sequence'}
+            </button>
+          </>
         )}
         <button
           type="button"
@@ -427,6 +494,32 @@ export default function RouteBuilderMap({
         {/* Stats */}
         <div className="ml-auto flex items-center gap-3 text-[11px] font-bold text-slate-500">
           <span>{pois.length} POIs</span>
+          {routingSource && !isRouting && (
+            <>
+              <span className="h-3 w-px bg-slate-200" />
+              <span
+                className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                  routingSource === 'openrouteservice'
+                    ? 'bg-emerald-50 text-emerald-600'
+                    : routingSource === 'osrm-bike'
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'bg-amber-50 text-amber-600'
+                }`}
+              >
+                {routingSource === 'openrouteservice'
+                  ? 'ORS'
+                  : routingSource === 'osrm-bike'
+                  ? 'OSRM'
+                  : 'Fallback'}
+              </span>
+            </>
+          )}
+          {routingDistanceKm != null && !isRouting && (
+            <>
+              <span className="h-3 w-px bg-slate-200" />
+              <span className="text-slate-600">{routingDistanceKm} km</span>
+            </>
+          )}
           {isRouting && (
             <>
               <span className="h-3 w-px bg-slate-200" />

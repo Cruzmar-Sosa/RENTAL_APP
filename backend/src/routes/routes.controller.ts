@@ -50,8 +50,20 @@ export class RoutesController {
 
   @Post('directions')
   @Permissions('ROUTES', 'READ')
-  getDirections(@Body() body: { coordinates: { lat: number; lng: number }[] }) {
-    return this.routesService.getDirections(body.coordinates);
+  getDirections(@Body() body: { coordinates: { lat: number; lng: number }[], optimize?: boolean }) {
+    return this.routesService.getDirections(body.coordinates, body.optimize);
+  }
+
+  @Post('diagnostics')
+  @Permissions('ROUTES', 'READ')
+  getDiagnostics(@Body() body: { coordinates: { lat: number; lng: number }[] }) {
+    return this.routesService.getDiagnostics(body.coordinates);
+  }
+
+  @Post('optimize')
+  @Permissions('ROUTES', 'READ')
+  optimizeSequence(@Body() body: { coordinates: { lat: number; lng: number }[] }) {
+    return this.routesService.optimizePoiSequence(body.coordinates);
   }
 
   @Put(':id/pois/reorder')

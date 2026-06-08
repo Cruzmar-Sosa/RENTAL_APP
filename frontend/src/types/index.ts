@@ -126,8 +126,8 @@ export interface Route {
   difficulty: 'EASY' | 'MODERATE' | 'HARD';
   distanceKm: number;
   durationMin: number;
-  visualPolyline?: any;
-  navigationPolyline?: any;
+  visualPolyline?: { lat: number; lng: number }[] | null;
+  navigationPolyline?: { lat: number; lng: number }[] | null;
   pois?: POI[];
 }
 
@@ -136,7 +136,7 @@ export interface POI {
   name: string;
   description?: string;
   category?: string;
-  gallery?: any;
+  gallery?: string[] | null;
   audioGuideUrl?: string;
   latitude: number;
   longitude: number;
