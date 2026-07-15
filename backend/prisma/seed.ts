@@ -88,6 +88,7 @@ async function main() {
       password,
       name: 'Admin User',
       role: 'ADMIN',
+      phone: '84272759',      
     },
   });
 
@@ -99,24 +100,23 @@ async function main() {
       password,
       name: 'Test User',
       role: 'USER',
+      phone: '77777777',
     },
   });
 
   // ─────────────────────────────────────────────
   // 4. Station + Bikes (create only if none exist)
   // ─────────────────────────────────────────────
-  const existingStation = await prisma.station.findFirst({
-    where: { name: 'León Central Park' }
-  });
+  const stationCount = await prisma.station.count();
 
-  if (!existingStation) {
+  if (stationCount === 0) {
     console.log('🏪 Seeding Station & Bikes...');
     await prisma.station.create({
       data: {
         name: 'León Central Park',
-        latitude: 21.1236,
-        longitude: -101.6825,
-        address: 'Frente a la Catedral de León, Gto.',
+        latitude: 12.43495,
+        longitude: -86.87813,
+        address: 'Frente a la Catedral de León, Nicaragua',
         capacity: 10,
         bikes: {
           create: [
@@ -135,33 +135,34 @@ async function main() {
   // ─────────────────────────────────────────────
   // 5. Routes (create only if none exist)
   // ─────────────────────────────────────────────
-  const existingRoute = await prisma.route.findFirst();
-  if (!existingRoute) {
+  const routeCount = await prisma.route.count();
+
+  if (routeCount === 0) {
     console.log('🗺️ Seeding Routes...');
     await prisma.route.create({
       data: {
         name: 'Centro Histórico Tour',
         description: 'Recorre los monumentos históricos del Centro de León a bordo de una bici eléctrica.',
         difficulty: 'EASY',
-        distanceKm: 6.5,
-        durationMin: 45,
+        distanceKm: 0,
+        durationMin: 0,
         visualPolyline: [
-          { lat: 21.1239, lng: -101.6832 },
-          { lat: 21.1210, lng: -101.6811 },
-          { lat: 21.1182, lng: -101.6793 },
-          { lat: 21.1178, lng: -101.6790 }
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 }
         ] as unknown as Prisma.InputJsonValue,
         navigationPolyline: [
-          { lat: 21.1239, lng: -101.6832 },
-          { lat: 21.1210, lng: -101.6811 },
-          { lat: 21.1182, lng: -101.6793 },
-          { lat: 21.1178, lng: -101.6790 }
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 }
         ] as unknown as Prisma.InputJsonValue,
         pois: {
           create: [
-            { name: 'Catedral de León', description: 'Punto de partida', latitude: 21.1239, longitude: -101.6832, order: 0 },
-            { name: 'Jardín Unión', description: 'Corazón de la ciudad', latitude: 21.1182, longitude: -101.6793, order: 1 },
-            { name: 'Teatro Juárez', description: 'Icono arquitectónico', latitude: 21.1178, longitude: -101.6790, order: 2 },
+            { name: 'Catedral de León', description: 'Punto de partida', latitude: 12.43495, longitude: -86.87813, order: 0 },
+            { name: 'Jardín Unión', description: 'Corazón de la ciudad', latitude: 12.43495, longitude: -86.87813, order: 1 },
+            { name: 'Teatro Juárez', description: 'Icono arquitectónico', latitude: 12.43495, longitude: -86.87813, order: 2 },
           ]
         }
       }
@@ -172,17 +173,17 @@ async function main() {
         name: 'Parque Ecológico Metropolitano',
         description: 'Ruta natural entre áreas verdes con miradores y senderos.',
         difficulty: 'MODERATE',
-        distanceKm: 12.2,
-        durationMin: 75,
+        distanceKm: 0,
+        durationMin: 0,
         visualPolyline: [
-          { lat: 21.1712, lng: -101.6853 },
-          { lat: 21.1725, lng: -101.6865 },
-          { lat: 21.1740, lng: -101.6850 },
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 },
         ] as unknown as Prisma.InputJsonValue,
         navigationPolyline: [
-          { lat: 21.1712, lng: -101.6853 },
-          { lat: 21.1725, lng: -101.6865 },
-          { lat: 21.1740, lng: -101.6850 },
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 },
+          { lat: 12.43495, lng: -86.87813 },
         ] as unknown as Prisma.InputJsonValue,
       }
     });

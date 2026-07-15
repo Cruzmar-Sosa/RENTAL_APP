@@ -117,6 +117,60 @@ export interface Payment {
   reservation?: Reservation;
 }
 
+export type IncidentType =
+  | 'NONE'
+  | 'MECHANICAL'
+  | 'TECHNICAL'
+  | 'ACCIDENT'
+  | 'DAMAGE'
+  | 'THEFT'
+  | 'OTHER';
+
+export type IncidentCategory =
+  | 'CUSTOMER'
+  | 'COMPANY'
+  | 'THIRD_PARTY'
+  | 'UNKNOWN';
+
+export interface SettlementCalculation {
+  estimatedDurationHours: number;
+  actualDurationHours: number;
+  overtimeHours: number;
+  isEarlyReturn: boolean;
+  isLateReturn: boolean;
+  ratePerHour: number;
+  estimatedCost: number;
+  actualBaseCost: number;
+  extrasTotal: number;
+  overtimeCharges: number;
+  incidentCharges: number;
+  incidentCredits: number;
+  damageCharges: number;
+  latePenalty: number;
+  totalPaid: number;
+  depositAmount: number;
+  upfrontAmount: number;
+  grossTotal: number;
+  creditsApplied: number;
+  netTotal: number;
+  balance: number;
+  recommendedFinancialStatus: ReservationFinancialStatus;
+  recommendedAction: 'COLLECT' | 'REFUND' | 'SETTLED';
+}
+
+export interface SettlementPreviewResponse {
+  reservationId: string;
+  userId: string;
+  bikeId: string;
+  startTime: string;
+  endTime: string | null;
+  actualStart: string | null;
+  actualEnd: string | null;
+  status: string;
+  clientName: string | null;
+  calculation: SettlementCalculation;
+}
+
 export interface Route {
   id: string;
   name: string;

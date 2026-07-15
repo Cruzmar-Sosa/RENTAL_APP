@@ -48,3 +48,29 @@ export function normalizePayments(payments: any[] | undefined): Payment[] {
   if (!payments) return [];
   return payments.map(normalizePayment);
 }
+
+export function normalizeSettlementPreview(preview: any): any {
+  if (!preview) return preview;
+  return {
+    ...preview,
+    calculation: preview.calculation ? {
+      ...preview.calculation,
+      ratePerHour: safeCurrency(preview.calculation.ratePerHour),
+      estimatedCost: safeCurrency(preview.calculation.estimatedCost),
+      actualBaseCost: safeCurrency(preview.calculation.actualBaseCost),
+      extrasTotal: safeCurrency(preview.calculation.extrasTotal),
+      overtimeCharges: safeCurrency(preview.calculation.overtimeCharges),
+      incidentCharges: safeCurrency(preview.calculation.incidentCharges),
+      incidentCredits: safeCurrency(preview.calculation.incidentCredits),
+      damageCharges: safeCurrency(preview.calculation.damageCharges),
+      latePenalty: safeCurrency(preview.calculation.latePenalty),
+      totalPaid: safeCurrency(preview.calculation.totalPaid),
+      depositAmount: safeCurrency(preview.calculation.depositAmount),
+      upfrontAmount: safeCurrency(preview.calculation.upfrontAmount),
+      grossTotal: safeCurrency(preview.calculation.grossTotal),
+      creditsApplied: safeCurrency(preview.calculation.creditsApplied),
+      netTotal: safeCurrency(preview.calculation.netTotal),
+      balance: safeCurrency(preview.calculation.balance),
+    } : undefined,
+  };
+}

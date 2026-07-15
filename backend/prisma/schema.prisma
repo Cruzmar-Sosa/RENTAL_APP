@@ -131,12 +131,19 @@ model Reservation {
   bikeCondition        String?
   bikeNotes            String?
   termsAccepted        Boolean?                   @default(false)
-  incidentType         String?
-  incidentCategory     String?
+  incidentType         String?                    @map("incidentType")
+  incidentCategory     String?                    @map("incidentCategory")
+  incidentTypeEnum     IncidentType?
+  incidentCategoryEnum IncidentCategory?
   incidentNotes        String?
   incidentReportedAt   DateTime?
   incidentReportedById String?
   settlementReference  String?                    @unique
+  overtimeHours        Decimal?                   @db.Decimal(10, 2)
+  overtimeCharges      Decimal?                   @db.Decimal(10, 2)
+  incidentCharges      Decimal?                   @db.Decimal(10, 2)
+  creditsApplied       Decimal?                   @db.Decimal(10, 2)
+  settledById          String?
   createdAt            DateTime                   @default(now())
   updatedAt            DateTime                   @updatedAt
   checkInPin           String?
@@ -175,8 +182,8 @@ model Route {
   name               String
   description        String?
   difficulty         RouteDifficulty @default(EASY)
-  distanceKm Float @default(0)
-  durationMin Int @default(0)
+  distanceKm         Float           @default(0)
+  durationMin        Int             @default(0)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   thumbnail          String?
@@ -360,4 +367,21 @@ enum BikeEventSource {
   SETTLEMENT
   CRON
   SYNC_ENGINE
+}
+
+enum IncidentType {
+  NONE
+  MECHANICAL
+  TECHNICAL
+  ACCIDENT
+  DAMAGE
+  THEFT
+  OTHER
+}
+
+enum IncidentCategory {
+  CUSTOMER
+  COMPANY
+  THIRD_PARTY
+  UNKNOWN
 }

@@ -5,10 +5,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class PaymentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService
+  ) {}
 
   async create(data: CreatePaymentDto, userId: string, userRole: string) {
     const reservation = await this.prisma.reservation.findUnique({
@@ -23,15 +27,29 @@ export class PaymentsService {
       throw new BadRequestException('Reservation does not belong to you');
     }
 
-    // Usually payments are created when completing a reservation, but this allows creating manually if needed a retry.
-    return this.prisma.payment.create({
-      data: {
-        reservationId: data.reservationId,
-        userId: userId,
-        amount: data.amount,
-        status: 'PENDING',
-        type: 'POST_RIDE',
-      },
+    return await this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.create({
+        data: {
+          reservationId: data.reservationId,
+          userId: userId,
+          amount: data.amount,
+          status: 'PENDING',
+          type: 'POST_RIDE',
+        },
+      });
+
+      await this.audit.recordPaymentEvent({
+        paymentId: payment.id,
+        reservationId: payment.reservationId,
+        eventType: 'PAYMENT_CREATED',
+        amount: payment.amount,
+        currency: payment.currency,
+        // statusBefore: null,
+        statusAfter: 'PENDING',
+        tx,
+      });
+
+      return payment;
     });
   }
 
@@ -44,34 +62,49 @@ export class PaymentsService {
     if (payment.status === 'PAID')
       throw new BadRequestException('Payment already completed');
 
-    // MOCK STRIPE FLOW: Just mark as PAID directly
-    const transactionOps: any[] = [
-      this.prisma.payment.update({
+    return await this.prisma.$transaction(async (tx) => {
+      const updatedPayment = await tx.payment.update({
         where: { id: paymentId },
         data: {
           status: 'PAID',
           paidAt: new Date(),
           stripePaymentIntentId: `mock_pi_${Date.now()}`,
         },
-      }),
-    ];
+      });
 
-    // If payment is for a PENDING reservation, confirm it
-    if (
-      payment.reservation.status === 'PENDING' &&
-      (payment.type === 'UPFRONT' || payment.type === 'DEPOSIT')
-    ) {
-      transactionOps.push(
-        this.prisma.reservation.update({
+      await this.audit.recordPaymentEvent({
+        paymentId: updatedPayment.id,
+        reservationId: updatedPayment.reservationId,
+        eventType: 'PAYMENT_PAID',
+        amount: updatedPayment.amount,
+        currency: updatedPayment.currency,
+        statusBefore: 'PENDING',
+        statusAfter: 'PAID',
+        tx,
+      });
+
+      if (
+        payment.reservation.status === 'PENDING' &&
+        (payment.type === 'UPFRONT' || payment.type === 'DEPOSIT')
+      ) {
+        await tx.reservation.update({
           where: { id: payment.reservationId },
           data: { status: 'CONFIRMED' },
-        }),
-      );
-    }
+        });
 
-    const [updatedPayment] = await this.prisma.$transaction(transactionOps);
+        await this.audit.recordReservationEvent({
+          reservationId: payment.reservationId,
+          previousStatus: 'PENDING',
+          nextStatus: 'CONFIRMED',
+          previousFinancialStatus: payment.reservation.financialStatus,
+          nextFinancialStatus: payment.reservation.financialStatus,
+          eventType: 'RESERVATION_CONFIRMED_BY_PAYMENT',
+          tx,
+        });
+      }
 
-    return updatedPayment;
+      return updatedPayment;
+    });
   }
 
   async findAll(userRole: string, userId: string) {
@@ -164,113 +197,4 @@ export class PaymentsService {
     };
   }
 
-  /**
-   * Phase 3: Settle Payment
-   * Confirms charge post-ride and calculates final amount with refund
-   */
-  async settlePayment(
-    reservationId: string,
-    userId: string,
-    userRole: string,
-    finalAmount: number,
-    depositAmount: number,
-  ) {
-    const reservation = await this.prisma.reservation.findUnique({
-      where: { id: reservationId },
-      include: { payments: true },
-    });
-
-    if (!reservation) {
-      throw new NotFoundException('Reservation not found');
-    }
-
-    if (reservation.userId !== userId && userRole !== 'ADMIN') {
-      throw new BadRequestException('Reservation does not belong to you');
-    }
-
-    // Calculate refund balance
-    const balanceRefund = depositAmount > finalAmount ? depositAmount - finalAmount : 0;
-
-    // Create or update settlement payment record
-    const payment = await this.prisma.payment.create({
-      data: {
-        reservationId,
-        userId,
-        amount: finalAmount,
-        currency: 'USD',
-        type: 'POST_RIDE',
-        status: 'PAID',
-        depositAmount,
-        settledAmount: finalAmount,
-        balanceRefund,
-        paidAt: new Date(),
-        stripePaymentIntentId: reservation.paymentIntentId,
-      },
-    });
-
-    // Update reservation financial status
-    await this.prisma.reservation.update({
-      where: { id: reservationId },
-      data: {
-        financialStatus: 'PAID',
-        settledAt: new Date(),
-      },
-    });
-
-    return {
-      paymentId: payment.id,
-      transactionId: reservation.paymentIntentId,
-      settledAmount: finalAmount,
-      balanceRefund,
-      status: 'SETTLED',
-    };
-  }
-
-  /**
-   * Phase 3: Refund Payment
-   * Issues refund for damage/incident reports
-   */
-  async refundPayment(
-    paymentId: string,
-    userId: string,
-    userRole: string,
-    reason: string,
-  ) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id: paymentId },
-    });
-
-    if (!payment) {
-      throw new NotFoundException('Payment not found');
-    }
-
-    if (payment.userId !== userId && userRole !== 'ADMIN') {
-      throw new BadRequestException('Not authorized to refund this payment');
-    }
-
-    if (payment.status !== 'PAID') {
-      throw new BadRequestException('Only paid payments can be refunded');
-    }
-
-    // Update payment status to REFUNDED
-    const refundedPayment = await this.prisma.payment.update({
-      where: { id: paymentId },
-      data: {
-        status: 'REFUNDED',
-        updatedAt: new Date(),
-      },
-    });
-
-    // Mock Stripe refund
-    const refundId = `rf_${Date.now()}`;
-
-    return {
-      refundId,
-      paymentId: payment.id,
-      refundedAmount: payment.amount,
-      reason,
-      status: 'REFUNDED',
-      timestamp: new Date(),
-    };
-  }
 }

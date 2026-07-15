@@ -61,44 +61,4 @@ export class PaymentsController {
     );
   }
 
-  /**
-   * Phase 3: Settle Payment
-   * POST /payments/settle/:reservationId
-   * Body: { finalAmount, depositAmount }
-   */
-  @Post('settle/:reservationId')
-  @Permissions('PAYMENTS', 'UPDATE')
-  async settlePayment(
-    @Request() req: any,
-    @Param('reservationId') reservationId: string,
-    @Body() body: { finalAmount: number; depositAmount: number },
-  ) {
-    return this.paymentsService.settlePayment(
-      reservationId,
-      req.user.sub,
-      req.user.role,
-      body.finalAmount,
-      body.depositAmount,
-    );
-  }
-
-  /**
-   * Phase 3: Refund Payment
-   * POST /payments/refund/:paymentId
-   * Body: { reason }
-   */
-  @Post('refund/:paymentId')
-  @Permissions('PAYMENTS', 'DELETE')
-  async refundPayment(
-    @Request() req: any,
-    @Param('paymentId') paymentId: string,
-    @Body() body: { reason: string },
-  ) {
-    return this.paymentsService.refundPayment(
-      paymentId,
-      req.user.sub,
-      req.user.role,
-      body.reason,
-    );
-  }
 }

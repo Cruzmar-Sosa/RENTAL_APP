@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -9,18 +9,28 @@ import { toast } from 'sonner';
 import { MapPin, Bike as BikeIcon, Zap, ShieldCheck, DollarSign, Activity, Settings2, Play } from 'lucide-react';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { ReserveModal } from '@/components/modals/ReserveModal';
 import { SettlementModal } from '@/components/modals/SettlementModal';
 import { CheckInModal } from '@/components/modals/CheckInModal';
 import { BikeCardPremium } from '@/components/bikes/BikeCardPremium';
+import { EmptyFleetState } from '@/components/bikes/EmptyFleetState';
 import { normalizeReservations } from '@/lib/financial-adapters';
 import { formatCurrency, calculateTotal, safeCurrency } from '@/lib/financial';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoaded: authLoaded, isAuthenticated } = useAuthStore();
+  const queryClient = useQueryClient();
+
+  const invalidateFleetCaches = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['stations'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-bikes'] });
+    queryClient.invalidateQueries({ queryKey: ['bikes'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-kpi-reservations'] });
+    queryClient.invalidateQueries({ queryKey: ['reservations'] });
+  }, [queryClient]);
 
   const [reserveModalOpen, setReserveModalOpen] = useState(false);
   const [selectedBikeId, setSelectedBikeId] = useState<string | null>(null);
@@ -68,15 +78,13 @@ export default function DashboardPage() {
     socket.on('reservation_expired', (data: { bikeId: string, reservationId: string }) => {
       console.log('🔔 Reservation Expired Real-time:', data);
       toast.info(`Reservation #${data.reservationId.slice(0,8)} expired and bike was released.`);
-      refetch();
-      refetchBikes();
-      if (user?.role === 'ADMIN') refetchReservations();
+      invalidateFleetCaches();
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [authLoaded, user, refetch, refetchReservations]);
+  }, [authLoaded, user, invalidateFleetCaches]);
 
   const [selectedBike, setSelectedBike] = useState<any>(null);
 
@@ -90,8 +98,7 @@ export default function DashboardPage() {
     try {
       await api.post('/reservations', payload);
       toast.success('Bicycle reserved successfully! 🚲');
-      refetch();
-      if (user?.role === 'ADMIN') refetchReservations();
+      invalidateFleetCaches();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to reserve. This bike might be already active or low battery.');
     }
@@ -106,8 +113,7 @@ export default function DashboardPage() {
     try {
       await api.patch(`/reservations/${id}/start`, data);
       toast.success('Ride started!');
-      refetch();
-      refetchReservations();
+      invalidateFleetCaches();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to start ride.');
     }
@@ -122,8 +128,7 @@ export default function DashboardPage() {
     try {
       await api.patch(`/reservations/${id}/${action}`, data);
       toast.success(action === 'report-incident' ? 'Incident reported successfully' : 'Ride completed and settled!');
-      refetch();
-      refetchReservations();
+      invalidateFleetCaches();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Action failed.');
     }
@@ -280,26 +285,43 @@ export default function DashboardPage() {
                 <span>{station.address}</span>
               </div>
               
-              <div className="mt-12 space-y-6">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <h3 className="font-black text-[10px] text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                    <BikeIcon size={16} className="text-black" />
-                    Available Fleet
-                  </h3>
-                  <span className="text-[10px] font-black bg-gray-100 px-3 py-1 rounded-lg uppercase">
-                    {bikes?.filter((b: any) => b.stationId === station.id && (b.status === 'AVAILABLE' || b.operationalStatus === 'AVAILABLE')).length || 0} Units
-                  </span>
-                </div>
+              <div className="mt-8 transition-all duration-500 ease-in-out">
+                {(() => {
+                  const stationBikes = bikes?.filter((b: any) => b.stationId === station.id && (b.status === 'AVAILABLE' || b.operationalStatus === 'AVAILABLE')) || [];
+                  const availableUnits = stationBikes.length;
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {bikes?.filter((b: any) => b.stationId === station.id && (b.status === 'AVAILABLE' || b.operationalStatus === 'AVAILABLE')).map((bike: any) => (
-                    <BikeCardPremium 
-                      key={bike.id} 
-                      bike={{...bike, station}} 
-                      onReserve={() => handleOpenReserve({...bike, station})}
-                    />
-                  ))}
-                </div>
+                  return (
+                    <>
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
+                        <h3 className="font-black text-[10px] text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                          <BikeIcon size={16} className="text-black" />
+                          Available Fleet
+                        </h3>
+                        <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase transition-colors duration-300 ${
+                          availableUnits === 0
+                            ? 'bg-gray-100 text-gray-400'
+                            : 'bg-gray-100 text-gray-900'
+                        }`}>
+                          {availableUnits} Units
+                        </span>
+                      </div>
+
+                      {availableUnits === 0 ? (
+                        <EmptyFleetState stationName={station.name} />
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-300">
+                          {stationBikes.map((bike: any) => (
+                            <BikeCardPremium 
+                              key={bike.id} 
+                              bike={{...bike, station}} 
+                              onReserve={() => handleOpenReserve({...bike, station})}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

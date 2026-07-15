@@ -164,6 +164,16 @@ export class ReservationsService {
           tx,
         });
 
+        await this.audit.recordReservationEvent({
+          reservationId: reservation.id,
+          nextStatus: reservationStatus,
+          nextFinancialStatus: financialStatus,
+          eventType: 'RESERVATION_CREATED',
+          correlationId: reservation.id,
+          createdById: effectiveUserId,
+          tx,
+        });
+
         this.logger.log(
           `[CREATE] Success: Res ${reservation.id}, Bike ${dto.bikeId} -> RESERVED (Operational)`,
         );
@@ -248,6 +258,18 @@ export class ReservationsService {
           tx,
         });
 
+        await this.audit.recordReservationEvent({
+          reservationId: id,
+          previousStatus: reservation.status,
+          nextStatus: 'CHECKED_IN',
+          previousFinancialStatus: reservation.financialStatus,
+          nextFinancialStatus: reservation.financialStatus,
+          eventType: 'RESERVATION_CHECKED_IN',
+          correlationId: id,
+          createdById: caller.sub,
+          tx,
+        });
+
         this.logger.log(
           `[CHECK-IN] Success: Res ${id}, Bike ${reservation.bikeId} -> IN_USE (Operational Blocked)`,
         );
@@ -287,6 +309,18 @@ export class ReservationsService {
             status: 'ACTIVE',
             actualStart: new Date(),
           },
+        });
+
+        await this.audit.recordReservationEvent({
+          reservationId: id,
+          previousStatus: reservation.status,
+          nextStatus: 'ACTIVE',
+          previousFinancialStatus: reservation.financialStatus,
+          nextFinancialStatus: reservation.financialStatus,
+          eventType: 'RESERVATION_STARTED',
+          correlationId: id,
+          createdById: caller.sub,
+          tx,
         });
 
         this.logger.log(`[START-RIDE] Success: Res ${id} -> ACTIVE`);
@@ -347,11 +381,35 @@ export class ReservationsService {
           },
         });
 
+        await this.audit.recordReservationEvent({
+          reservationId: id,
+          previousStatus: reservation.status,
+          nextStatus: 'COMPLETED',
+          previousFinancialStatus: reservation.financialStatus,
+          nextFinancialStatus: reservation.financialStatus,
+          eventType: 'RESERVATION_COMPLETED',
+          correlationId: id,
+          createdById: caller.sub,
+          tx,
+        });
+
         // We don't release bike yet, we wait for settlement to be COMPLETED -> SETTLEMENT_PENDING -> SETTLED
         // Actually, operational completion should move to SETTLEMENT_PENDING immediately if there is balance
         await tx.reservation.update({
           where: { id },
           data: { status: targetStatus },
+        });
+
+        await this.audit.recordReservationEvent({
+          reservationId: id,
+          previousStatus: 'COMPLETED',
+          nextStatus: targetStatus,
+          previousFinancialStatus: reservation.financialStatus,
+          nextFinancialStatus: reservation.financialStatus,
+          eventType: 'RESERVATION_PENDING_SETTLEMENT',
+          correlationId: id,
+          createdById: caller.sub,
+          tx,
         });
 
         this.logger.log(
@@ -453,6 +511,33 @@ export class ReservationsService {
               `SETTLE-${Date.now()}-${id.slice(0, 4)}`,
             payments: payments.length > 0 ? { create: payments } : undefined,
           },
+        });
+
+        // Record payment events if new payments created
+        if (payments.length > 0) {
+          // Since we created them via nested write, let's find them or log the event
+          // For safety, we can query or audit using a general event or resolve from updated payments
+          await this.audit.recordPaymentEvent({
+            paymentId: `settle-nested-payment-${id}`,
+            reservationId: id,
+            eventType: 'SETTLEMENT_PAYMENTS_GENERATED',
+            amount: balance,
+            currency: 'USD',
+            statusAfter: 'PAID',
+            tx,
+          });
+        }
+
+        await this.audit.recordReservationEvent({
+          reservationId: id,
+          previousStatus: reservation.status,
+          nextStatus: 'SETTLED',
+          previousFinancialStatus: reservation.financialStatus,
+          nextFinancialStatus: finalFinancialStatus,
+          eventType: 'RESERVATION_SETTLED',
+          correlationId: id,
+          createdById: caller.sub,
+          tx,
         });
 
         const isTechnicalIncident = [

@@ -7,7 +7,7 @@ import { Calendar, Bike as BikeIcon, User as UserIcon, CheckCircle, XCircle, Clo
 import { cn } from '@/lib/utils';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { AccessDenied } from '@/components/ui/access-denied';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { CheckInModal } from '@/components/modals/CheckInModal';
@@ -24,6 +24,14 @@ import { getPresentationState } from '@/utils/states';
 export default function ReservationsAdminPage() {
   const { canRead, canView, isLoaded, canUpdate, isAdmin, user } = usePermissions();
   const queryClient = useQueryClient();
+
+  const invalidateFleetCaches = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['stations'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-bikes'] });
+    queryClient.invalidateQueries({ queryKey: ['bikes'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-kpi-reservations'] });
+    queryClient.invalidateQueries({ queryKey: ['reservations'] });
+  }, [queryClient]);
   
   // Selection States
   const [selectedResId, setSelectedResId] = useState<string | null>(null);
@@ -55,20 +63,20 @@ export default function ReservationsAdminPage() {
     socket.on('reservation_expired', (data: { bikeId: string, reservationId: string }) => {
       console.log('🔔 Reservation Expired Real-time:', data);
       toast.info(`Reservation #${data.reservationId.slice(0,8)} expired.`);
-      refetch();
+      invalidateFleetCaches();
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [isLoaded, refetch]);
+  }, [isLoaded, invalidateFleetCaches]);
 
   const actionMutation = useMutation({
     mutationFn: async ({ id, type, data }: {id: string, type: 'check-in' | 'start' | 'complete' | 'settle' | 'cancel' | 'report-incident', data?: any}) => {
       return api.patch(`/reservations/${id}/${type}`, data);
     },
     onSuccess: (_, v) => { 
-      queryClient.invalidateQueries({ queryKey: ['reservations'] }); 
+      invalidateFleetCaches();
       toast.success(`Action '${v.type.replace('-', ' ')}' executed successfully`); 
       setCancelConfirmOpen(false);
     },

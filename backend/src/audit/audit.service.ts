@@ -18,9 +18,9 @@ export class AuditService {
 
   async recordReservationEvent(params: {
     reservationId: string;
-    previousStatus?: ReservationStatus;
+    previousStatus?: ReservationStatus | null;
     nextStatus: ReservationStatus;
-    previousFinancialStatus?: ReservationFinancialStatus;
+    previousFinancialStatus?: ReservationFinancialStatus | null;
     nextFinancialStatus: ReservationFinancialStatus;
     eventType: string;
     metadata?: any;
@@ -61,7 +61,7 @@ export class AuditService {
     currency: string;
     provider?: string;
     providerReference?: string;
-    statusBefore?: PaymentStatus;
+    statusBefore?: PaymentStatus | null;
     statusAfter: PaymentStatus;
     metadata?: any;
     tx?: any;

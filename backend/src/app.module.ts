@@ -14,6 +14,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { RoutesModule } from './routes/routes.module';
 import { AuditModule } from './audit/audit.module';
 import { StorageModule } from './common/storage/storage.module';
+import { SettlementModule } from './settlement/settlement.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { StorageModule } from './common/storage/storage.module';
     TrackingModule,
     PaymentsModule,
     RoutesModule,
+    SettlementModule,
   ],
   controllers: [AppController],
   providers: [AppService],
