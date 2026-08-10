@@ -9,6 +9,8 @@ export interface UseDataTableOptions<T> {
   searchableKeys?: string[];
   defaultPageSize?: number;
   storageKey?: string; // for localStorage persistence
+  /** Optional extra match function. Runs OR-alongside the key-based search. */
+  customSearchFn?: (item: T, term: string) => boolean;
 }
 
 export interface UseDataTableReturn<T> {
@@ -45,6 +47,7 @@ export function useDataTable<T extends object>({
   searchableKeys = [],
   defaultPageSize = 10,
   storageKey,
+  customSearchFn,
 }: UseDataTableOptions<T>): UseDataTableReturn<T> {
   // ─── Search state ───
   const [searchTerm, setSearchTerm] = useState('');
@@ -104,12 +107,14 @@ export function useDataTable<T extends object>({
     // Apply search
     if (debouncedSearchTerm) {
       const term = debouncedSearchTerm.toLowerCase();
-      result = result.filter((row) =>
-        searchableKeys.some((key) => {
+      result = result.filter((row) => {
+        const keyMatch = searchableKeys.some((key) => {
           const value = getNestedValue(row, key);
           return String(value ?? '').toLowerCase().includes(term);
-        })
-      );
+        });
+        const customMatch = customSearchFn ? customSearchFn(row, debouncedSearchTerm) : false;
+        return keyMatch || customMatch;
+      });
     }
 
     // Apply filters
@@ -121,7 +126,7 @@ export function useDataTable<T extends object>({
     });
 
     return result;
-  }, [data, debouncedSearchTerm, searchableKeys, activeFilters]);
+  }, [data, debouncedSearchTerm, searchableKeys, activeFilters, customSearchFn]);
 
   // Reset page when filtered data changes
   useEffect(() => {

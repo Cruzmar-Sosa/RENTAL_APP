@@ -17,6 +17,7 @@ import { formatNIDate } from '@/lib/dateUtils';
 import { normalizeReservation } from '@/lib/financial-adapters';
 import { formatCurrency, safeCurrency } from '@/lib/financial';
 import { getBikeImageUrl } from '@/lib/storageUtils';
+import { fmtReservation, fmtBike } from '@/lib/businessCode';
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
@@ -89,7 +90,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
             <div>
               <h2 className="text-2xl font-black tracking-tight text-gray-900">Master Reservation Record</h2>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Ref: {reservation.id.slice(0, 8)}...</span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{fmtReservation(reservation.code)}</span>
                 <div className="w-1 h-1 rounded-full bg-gray-300" />
                 <span className={cn(
                   "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest",
@@ -172,7 +173,7 @@ export function ReservationDetailModal({ isOpen, onClose, reservationId }: Reser
               <div className="flex justify-between items-end">
                 <div>
                   <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Assigned Code</p>
-                  <p className="text-2xl font-black text-black">#{reservation.bike?.code || 'N/A'}</p>
+                  <p className="text-2xl font-black text-black">{fmtBike(reservation.bike?.code)}</p>
                 </div>
                 <span className="px-3 py-1 rounded-xl bg-gray-100 text-[10px] font-black uppercase text-gray-500 border border-gray-200">
                   {reservation.bike?.status}

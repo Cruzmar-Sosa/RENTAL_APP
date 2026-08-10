@@ -34,6 +34,7 @@ import { exportToExcel, exportToPDF } from '@/lib/export-utils';
 import { cn } from '@/lib/utils';
 import { safeParsePolyline, Coordinate, calculateDistanceKm, estimateDurationMin } from '@/utils/geo';
 import dynamic from 'next/dynamic';
+import { fmtRoute } from '@/lib/businessCode';
 
 // Dynamic import — no SSR for Leaflet
 const RouteBuilderMap = dynamic(() => import('@/components/RouteBuilderMap'), {
@@ -474,6 +475,9 @@ export default function RoutesPage() {
 
             <div className="flex justify-between items-start pr-8">
               <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-2 py-0.5 rounded-lg">{fmtRoute((route as any).code)}</span>
+                </div>
                 <h3 className="font-extrabold text-lg text-gray-900 group-hover:text-blue-600 transition-colors">{route.name}</h3>
                 <p className="text-xs font-bold text-gray-400 mt-1 flex items-center gap-1 uppercase tracking-wider"><RouteIcon size={14}/> {route.difficulty}</p>
               </div>

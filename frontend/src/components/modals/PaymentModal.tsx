@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Payment } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/financial';
+import { fmtPayment, fmtReservation } from '@/lib/businessCode';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -98,7 +99,7 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm, mode = 'admi
           <div className="px-4 py-2 bg-gray-50 border-2 border-gray-100 rounded-2xl flex items-center gap-3">
             <Receipt size={16} className="text-gray-400" />
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Master Invoice</span>
-            <span className="text-xs font-black text-gray-900">#{payment.id.slice(0, 12).toUpperCase()}</span>
+            <span className="text-xs font-black text-gray-900">{fmtPayment(payment.code)}</span>
           </div>
         </div>
 
@@ -122,7 +123,7 @@ export function PaymentModal({ isOpen, onClose, payment, onConfirm, mode = 'admi
             </div>
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Linked Reservation</p>
-              <p className="text-sm font-bold text-gray-900 leading-tight">Ref: {payment.reservationId.slice(0, 16)}...</p>
+              <p className="text-sm font-bold text-gray-900 leading-tight">{fmtReservation((payment.reservation as any)?.code || undefined)}</p>
             </div>
           </div>
         </div>

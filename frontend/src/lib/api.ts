@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -14,11 +15,7 @@ export const api = axios.create({
   },
 });
 
-console.log('API BASE URL:', API_URL);
-
 api.interceptors.request.use((config) => {
-  //console.log('REQUEST TO:', config.baseURL + config.url);
-
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token');
     if (token) {
@@ -27,3 +24,22 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Global Response Interceptor for HTTP 401 handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
+      const isLoginPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/login');
+
+      // Only trigger logout if it is an authenticated route, not currently logging in or on login page
+      if (!isAuthEndpoint && !isLoginPage && typeof window !== 'undefined') {
+        console.warn('[API Interceptor] HTTP 401 received. Clearing auth state and redirecting.');
+        useAuthStore.getState().logout();
+      }
+    }
+    return Promise.reject(error);
+  },
+);

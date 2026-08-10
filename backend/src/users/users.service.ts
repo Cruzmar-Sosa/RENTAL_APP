@@ -1,4 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -6,11 +7,20 @@ import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
+
+  private getSaltRounds(): number {
+    const raw = this.configService.get<string>('BCRYPT_SALT_ROUNDS', '10');
+    const parsed = parseInt(raw, 10);
+    return isNaN(parsed) || parsed < 4 ? 10 : parsed;
+  }
 
   async createUser(data: CreateUserDto) {
     try {
-      const hashedPassword = await bcrypt.hash(data.password, 10);
+      const hashedPassword = await bcrypt.hash(data.password, this.getSaltRounds());
       return this.prisma.user.create({
         data: {
           email: data.email,
@@ -123,7 +133,7 @@ export class UsersService {
     try {
       const updateData: any = { ...data };
       if (updateData.password) {
-        updateData.password = await bcrypt.hash(updateData.password, 10);
+        updateData.password = await bcrypt.hash(updateData.password, this.getSaltRounds());
       } else {
         delete updateData.password; // Don't overwrite with empty string
       }

@@ -1,0 +1,5 @@
+export const VERSION_CONFIG = {
+  APP_VERSION: '1.0.0',
+  MIN_SUPPORTED_API_VERSION: '1.0.0',
+  BUILD_NUMBER: 1,
+} as const;

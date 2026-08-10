@@ -20,6 +20,7 @@ import { formatNIDate } from '@/lib/dateUtils';
 import { normalizeReservations } from '@/lib/financial-adapters';
 import { formatCurrency } from '@/lib/financial';
 import { getPresentationState } from '@/utils/states';
+import { fmtReservation, fmtBike, parseBusinessCode } from '@/lib/businessCode';
 
 export default function ReservationsAdminPage() {
   const { canRead, canView, isLoaded, canUpdate, isAdmin, user } = usePermissions();
@@ -60,9 +61,10 @@ export default function ReservationsAdminPage() {
       transports: ['websocket'],
     });
 
-    socket.on('reservation_expired', (data: { bikeId: string, reservationId: string }) => {
+    socket.on('reservation_expired', (data: { bikeId: string, reservationId: string, code?: number }) => {
       console.log('🔔 Reservation Expired Real-time:', data);
-      toast.info(`Reservation #${data.reservationId.slice(0,8)} expired.`);
+      const label = data.code ? fmtReservation(data.code) : `#${data.reservationId.slice(0,8)}`;
+      toast.info(`Reservation ${label} expired.`);
       invalidateFleetCaches();
     });
 
@@ -100,9 +102,15 @@ export default function ReservationsAdminPage() {
 
   const table = useDataTable({ 
     data: reservations || [], 
-    searchableKeys: ['id', 'user.email', 'user.name', 'bikeId', 'clientName', 'guestName'], 
+    searchableKeys: ['code', 'id', 'user.email', 'user.name', 'bikeId', 'clientName', 'guestName'], 
     defaultPageSize: 10, 
-    storageKey: 'reservations' 
+    storageKey: 'reservations',
+    customSearchFn: (item: any, term: string) => {
+      // Allow searching by business code format: RES-000125
+      const parsed = parseBusinessCode(term.toUpperCase());
+      if (parsed !== null) return item.code === parsed;
+      return false;
+    }
   });
 
   const columns: DataTableColumn<any>[] = [
@@ -118,7 +126,7 @@ export default function ReservationsAdminPage() {
               <SI size={18} />
             </div>
             <div>
-              <span className="font-bold text-gray-900 block truncate max-w-[80px]">#{(r.id as string).slice(0, 8)}</span>
+              <span className="font-bold text-gray-900 block truncate max-w-[100px]">{fmtReservation(r.code as number)}</span>
               <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider border inline-block mt-0.5", stateConfig.color)}>
                 {stateConfig.label}
               </span>
@@ -147,7 +155,7 @@ export default function ReservationsAdminPage() {
       cell: (r) => (
         <div className="flex items-center gap-2 text-sm font-medium">
           <BikeIcon size={16} className="text-gray-400" />
-          #{ (r.bike as any)?.code || (r.bikeId as string).slice(0, 4) }
+          {fmtBike((r.bike as any)?.code)}
         </div>
       ) 
     },
@@ -296,7 +304,7 @@ export default function ReservationsAdminPage() {
         exportFileName="reservations" 
         searchTerm={table.searchTerm} 
         onSearchChange={table.setSearchTerm} 
-        searchPlaceholder="Search by ID, client, bike..." 
+        searchPlaceholder="Search by code (RES-000125), client, bike..." 
         activeFilters={table.activeFilters} 
         onFilterChange={table.setFilter} 
         currentPage={table.currentPage} 

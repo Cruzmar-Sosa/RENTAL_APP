@@ -16,10 +16,13 @@ import { AuditModule } from './audit/audit.module';
 import { StorageModule } from './common/storage/storage.module';
 import { SettlementModule } from './settlement/settlement.module';
 
+import { SecurityModule } from './common/security/security.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    SecurityModule,
     StorageModule,
     AuditModule,
     PrismaModule,

@@ -14,6 +14,7 @@ import { DataTablePro, DataTableColumn, DataTableFilter } from '@/components/ui/
 import { useDataTable } from '@/hooks/useDataTable';
 import { normalizePayments } from '@/lib/financial-adapters';
 import { formatCurrency, calculateTotal } from '@/lib/financial';
+import { fmtPayment, fmtReservation, parseBusinessCode } from '@/lib/businessCode';
 
 export default function PaymentsPage() {
   const { canRead, canView, isLoaded, canUpdate } = usePermissions();
@@ -36,7 +37,17 @@ export default function PaymentsPage() {
     onError: (err: any) => { toast.error(err.response?.data?.message || 'Payment failed'); }
   });
 
-  const table = useDataTable({ data: payments || [], searchableKeys: ['id', 'reservationId', 'userId', 'user.email', 'user.name'], defaultPageSize: 10, storageKey: 'payments' });
+  const table = useDataTable({
+    data: payments || [],
+    searchableKeys: ['code', 'id', 'reservationId', 'userId', 'user.email', 'user.name'],
+    defaultPageSize: 10,
+    storageKey: 'payments',
+    customSearchFn: (item: any, term: string) => {
+      const parsed = parseBusinessCode(term.toUpperCase());
+      if (parsed !== null) return item.code === parsed;
+      return false;
+    }
+  });
 
   const totalSpent = formatCurrency(calculateTotal(payments?.filter((p: any) => p.status === 'PAID'), (p) => p.amount));
   const pendingCount = payments?.filter((p: any) => p.status === 'PENDING').length || 0;
@@ -60,7 +71,7 @@ export default function PaymentsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-900">#{(p.id as string).slice(0, 8).toUpperCase()}</span>
+                <span className="font-bold text-gray-900">{fmtPayment(p.code as number)}</span>
                 <span className={cn(
                   "text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border", 
                   isPaid ? "bg-emerald-50 text-emerald-600 border-emerald-100" : 
@@ -101,7 +112,7 @@ export default function PaymentsPage() {
       cell: (p) => (
         <div className="flex flex-col">
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Reservation</span>
-          <span className="text-xs font-bold text-gray-900">#RES-{(p.reservationId as string).slice(0, 8).toUpperCase()}</span>
+          <span className="text-xs font-bold text-gray-900">{fmtReservation((p.reservation as any)?.code || undefined)}</span>
         </div>
       ),
     },
@@ -195,7 +206,7 @@ export default function PaymentsPage() {
         exportFileName="payments"
         searchTerm={table.searchTerm}
         onSearchChange={table.setSearchTerm}
-        searchPlaceholder="Search by ID, reservation or email..."
+        searchPlaceholder="Search by code (PAY-000842), reservation or email..."
         activeFilters={table.activeFilters}
         onFilterChange={table.setFilter}
         currentPage={table.currentPage}

@@ -10,7 +10,11 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { BikesService } from './bikes.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -60,13 +64,22 @@ export class BikesController {
     return this.bikesService.remove(id);
   }
 
+  @Throttle({ uploads: { limit: 10, ttl: 60000 } })
   @Post(':id/image')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('BIKES', 'UPDATE')
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(
     @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp|gif)$/i }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
   ) {
     return this.bikesService.uploadImage(id, file);
   }

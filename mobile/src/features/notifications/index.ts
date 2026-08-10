@@ -1,0 +1,2 @@
+// Feature module: notifications
+export {};

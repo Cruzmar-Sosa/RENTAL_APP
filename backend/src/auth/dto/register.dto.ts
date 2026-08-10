@@ -22,4 +22,8 @@ export class RegisterDto {
   @IsString({ message: 'El teléfono debe ser una cadena de texto.' })
   @IsOptional()
   phone?: string;
+
+  @IsString()
+  @IsOptional()
+  website?: string; // Invisible Honeypot Field for anti-bot protection
 }

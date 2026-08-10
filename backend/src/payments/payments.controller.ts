@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
@@ -19,12 +20,14 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
+  @Throttle({ payments: { limit: 10, ttl: 60000 } })
   @Post()
   @Permissions('PAYMENTS', 'CREATE')
   create(@Request() req: any, @Body() createPaymentDto: CreatePaymentDto) {
     return this.paymentsService.create(createPaymentDto, req.user.sub, req.user.role);
   }
 
+  @Throttle({ payments: { limit: 10, ttl: 60000 } })
   @Patch(':id/pay')
   @Permissions('PAYMENTS', 'UPDATE')
   pay(@Param('id') id: string) {
@@ -47,6 +50,7 @@ export class PaymentsController {
    * POST /payments/reserve-intent
    * Body: { reservationId, amount }
    */
+  @Throttle({ payments: { limit: 10, ttl: 60000 } })
   @Post('reserve-intent')
   @Permissions('PAYMENTS', 'CREATE')
   async reservePaymentIntent(
@@ -60,5 +64,4 @@ export class PaymentsController {
       body.reservationId,
     );
   }
-
 }

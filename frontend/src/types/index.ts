@@ -59,6 +59,7 @@ export type ReservationFinancialStatus =
 
 export interface Reservation {
   id: string;
+  code: number;
   userId: string;
   bikeId: string;
   status: ReservationStatus;
@@ -105,6 +106,7 @@ export interface Reservation {
 
 export interface Payment {
   id: string;
+  code: number;
   reservationId: string;
   userId: string;
   amount: number;
@@ -173,6 +175,7 @@ export interface SettlementPreviewResponse {
 
 export interface Route {
   id: string;
+  code: number;
   name: string;
   description?: string;
   thumbnail?: string;

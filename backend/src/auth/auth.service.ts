@@ -8,6 +8,8 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { LoginProtectionService } from '../common/security/login-protection.service';
+import { RegistrationAbuseService } from '../common/security/registration-abuse.service';
 
 @Injectable()
 export class AuthService {
@@ -15,10 +17,16 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private prisma: PrismaService,
+    private loginProtectionService: LoginProtectionService,
+    private registrationAbuseService: RegistrationAbuseService,
   ) {}
 
-  async register(data: any) {
+  async register(data: any, ip: string = '127.0.0.1') {
     try {
+      // 1. Bot Honeypot & IP Registration Frequency Validation
+      this.registrationAbuseService.validateHoneypot(data.website, ip, data.email);
+      this.registrationAbuseService.checkIpRegistrationLimit(ip, data.email);
+
       // Sanitización básica
       if (data.name) data.name = data.name.trim();
       if (data.email) data.email = data.email.trim().toLowerCase();
@@ -61,19 +69,29 @@ export class AuthService {
     }
   }
 
-  async login(data: any) {
+  async login(data: any, ip: string = '127.0.0.1') {
     try {
+      // 1. Lockout Check before querying DB / comparing password
+      await this.loginProtectionService.checkLockout(data.email, ip);
+
       const user = await this.usersService.findByEmail(data.email);
-      if (!user)
+      if (!user) {
+        await this.loginProtectionService.recordFailedAttempt(data.email, ip);
         throw new UnauthorizedException(
           'El correo ingresado no se encuentra registrado.',
         );
+      }
 
       const isMatch = await bcrypt.compare(data.password, user.password);
-      if (!isMatch)
+      if (!isMatch) {
+        await this.loginProtectionService.recordFailedAttempt(data.email, ip);
         throw new UnauthorizedException(
           'La contraseña ingresada es incorrecta.',
         );
+      }
+
+      // Successful login -> Reset lockout attempt counters
+      await this.loginProtectionService.recordSuccessfulLogin(data.email, ip);
 
       const payload = { sub: user.id, email: user.email, role: user.role };
       return {

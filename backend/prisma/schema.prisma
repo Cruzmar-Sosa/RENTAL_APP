@@ -107,6 +107,7 @@ model BikeLocation {
 
 model Reservation {
   id                   String                     @id @default(uuid())
+  code                 Int                        @unique @default(autoincrement())
   userId               String
   bikeId               String
   status               ReservationStatus          @default(CONFIRMED)
@@ -160,6 +161,7 @@ model Reservation {
 
 model Payment {
   id                    String        @id @default(uuid())
+  code                  Int           @unique @default(autoincrement())
   reservationId         String
   userId                String
   amount                Decimal       @db.Decimal(10, 2)
@@ -179,6 +181,7 @@ model Payment {
 
 model Route {
   id                 String          @id @default(uuid())
+  code               Int             @unique @default(autoincrement())
   name               String
   description        String?
   difficulty         RouteDifficulty @default(EASY)

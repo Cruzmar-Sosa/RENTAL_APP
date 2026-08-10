@@ -9,6 +9,7 @@ import {
   Request,
   Query,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ReservationsService } from './reservations.service';
 import { PinsService } from './pins.service';
 import { NotificationsService } from './notifications.service';
@@ -33,6 +34,7 @@ export class ReservationsController {
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  @Throttle({ reservations: { limit: 15, ttl: 60000 } })
   @Post()
   create(@Request() req: any, @Body() dto: CreateReservationDto) {
     return this.reservationsService.create(req.user, dto);
@@ -54,16 +56,19 @@ export class ReservationsController {
     return this.reservationsService.findOne(id, req.user);
   }
 
+  @Throttle({ reservations: { limit: 15, ttl: 60000 } })
   @Patch(':id/check-in')
   checkIn(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     return this.reservationsService.checkIn(id, req.user, dto);
   }
 
+  @Throttle({ reservations: { limit: 15, ttl: 60000 } })
   @Patch(':id/start')
   start(@Request() req: any, @Param('id') id: string) {
     return this.reservationsService.start(id, req.user);
   }
 
+  @Throttle({ reservations: { limit: 15, ttl: 60000 } })
   @Patch(':id/complete')
   complete(
     @Request() req: any,
@@ -73,11 +78,13 @@ export class ReservationsController {
     return this.reservationsService.complete(id, req.user, dto);
   }
 
+  @Throttle({ reservations: { limit: 10, ttl: 60000 } })
   @Patch(':id/settle')
   settle(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     return this.reservationsService.settle(id, req.user, dto);
   }
 
+  @Throttle({ reservations: { limit: 15, ttl: 60000 } })
   @Patch(':id/report-incident')
   reportIncident(
     @Request() req: any,
@@ -87,6 +94,7 @@ export class ReservationsController {
     return this.reservationsService.reportIncident(id, req.user, dto);
   }
 
+  @Throttle({ reservations: { limit: 15, ttl: 60000 } })
   @Patch(':id/cancel')
   cancel(@Request() req: any, @Param('id') id: string) {
     return this.reservationsService.cancel(id, req.user);
@@ -98,6 +106,7 @@ export class ReservationsController {
    * Generate PIN for a reservation
    * POST /reservations/:id/generate-pin
    */
+  @Throttle({ auth: { limit: 10, ttl: 60000 } })
   @Post(':id/generate-pin')
   @Permissions('RESERVATIONS', 'READ')
   async generatePin(@Request() req: any, @Param('id') id: string) {
@@ -108,6 +117,7 @@ export class ReservationsController {
    * Get/Retrieve existing PIN (generates new if doesn't exist)
    * GET /reservations/:id/pin
    */
+  @Throttle({ auth: { limit: 10, ttl: 60000 } })
   @Get(':id/pin')
   @Permissions('RESERVATIONS', 'READ')
   async getPin(@Request() req: any, @Param('id') id: string) {
@@ -119,6 +129,7 @@ export class ReservationsController {
    * POST /reservations/:id/verify-pin
    * Body: { pinInput: string }
    */
+  @Throttle({ auth: { limit: 10, ttl: 60000 } })
   @Post(':id/verify-pin')
   @Permissions('RESERVATIONS', 'UPDATE')
   async verifyPin(
@@ -129,4 +140,3 @@ export class ReservationsController {
     return this.pinsService.verifyPin(id, req.user.sub, body.pinInput);
   }
 }
-

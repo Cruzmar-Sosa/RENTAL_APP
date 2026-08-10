@@ -857,6 +857,7 @@ export class ReservationsService {
         this.trackingGateway.server.emit('reservation_expired', {
           bikeId: res.bikeId,
           reservationId: res.id,
+          code: res.code,
         });
 
         this.logger.log(

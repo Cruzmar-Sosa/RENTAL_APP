@@ -122,7 +122,11 @@ export class PaymentsService {
           },
         },
         reservation: {
-          include: { bike: true },
+          select: {
+            id: true,
+            code: true,
+            bike: { select: { id: true, code: true, model: true, status: true, imageUrl: true } },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -143,7 +147,11 @@ export class PaymentsService {
           },
         },
         reservation: {
-          include: { bike: true },
+          select: {
+            id: true,
+            code: true,
+            bike: { select: { id: true, code: true, model: true, status: true, imageUrl: true } },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
