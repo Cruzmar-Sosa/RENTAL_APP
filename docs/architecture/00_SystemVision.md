@@ -1,7 +1,7 @@
 # Rent_App System Vision
 **Document ID:** ARCH-00  
 **Version:** 1.0.0  
-**Status:** Draft  
+**Status:** Approved  
 **Owner:** Rent_App Architecture Team  
 **Last Updated:** July 2026
 

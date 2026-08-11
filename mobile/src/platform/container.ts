@@ -17,6 +17,7 @@ import { StationRepository } from '@application/repositories/StationRepository';
 import { BikeRepository } from '@application/repositories/BikeRepository';
 import { ReservationRepository } from '@application/repositories/ReservationRepository';
 import { TrackingRepository } from '@application/repositories/TrackingRepository';
+import { PaymentRepository } from '@application/repositories/PaymentRepository';
 
 // Singletons
 export const httpClient = new HttpClient();
@@ -48,3 +49,4 @@ export const stationRepository = new StationRepository(httpClient);
 export const bikeRepository = new BikeRepository(httpClient);
 export const reservationRepository = new ReservationRepository(httpClient);
 export const trackingRepository = new TrackingRepository(trackingEngine);
+export const paymentRepository = new PaymentRepository(httpClient);

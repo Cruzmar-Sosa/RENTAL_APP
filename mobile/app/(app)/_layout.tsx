@@ -7,6 +7,8 @@ export default function AppLayout() {
       <Stack.Screen name="reservation/new" />
       <Stack.Screen name="reservation/[id]" />
       <Stack.Screen name="reservation/pin/[id]" />
+      <Stack.Screen name="payments/index" />
+      <Stack.Screen name="payments/settlement/[id]" />
     </Stack>
   );
 }

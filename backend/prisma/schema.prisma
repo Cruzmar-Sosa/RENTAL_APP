@@ -94,15 +94,21 @@ model Bike {
 }
 
 model BikeLocation {
-  id        String   @id @default(uuid())
-  bikeId    String
-  latitude  Float
-  longitude Float
-  speed     Float    @default(0)
-  timestamp DateTime @default(now())
-  bike      Bike     @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+  id           String   @id @default(uuid())
+  frameId      String?  @unique
+  rideId       String?
+  bikeId       String
+  latitude     Float
+  longitude    Float
+  speed        Float    @default(0)
+  heading      Float?
+  batteryLevel Int?     @default(100)
+  timestamp    DateTime @default(now())
+  receivedAt   DateTime @default(now())
+  bike         Bike     @relation(fields: [bikeId], references: [id], onDelete: Cascade)
 
-  @@index([bikeId, timestamp])
+  @@index([bikeId, timestamp(sort: Desc)])
+  @@index([rideId, timestamp(sort: Asc)])
 }
 
 model Reservation {

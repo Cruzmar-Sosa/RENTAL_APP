@@ -1,9 +1,10 @@
 export interface UserProps {
   id: string;
   email: string;
-  fullName: string;
-  role: 'CUSTOMER' | 'OPERATOR' | 'ADMIN';
-  createdAt: string;
+  fullName?: string;
+  name?: string;
+  role: 'CUSTOMER' | 'OPERATOR' | 'ADMIN' | string;
+  createdAt?: string;
 }
 
 export class User {
@@ -16,7 +17,7 @@ export class User {
     return this.props.email;
   }
   get fullName(): string {
-    return this.props.fullName;
+    return this.props.fullName || this.props.name || this.props.email || 'User';
   }
   get role(): string {
     return this.props.role;

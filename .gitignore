@@ -60,3 +60,85 @@ implementationplan.md
 tasks.md
 PHASE3-COMPLETE.txt
 
+
+
+## ─────────────────────────────
+# DOCUMENTACION
+# ─────────────────────────────
+/docs/*.md
+docs/**/*.md
+docs/**/**.md
+
+## ─────────────────────────────
+# ARCHITECTURE
+# ─────────────────────────────
+docs/architecture.md
+docs/architecture/**/*.md
+docs/architecture/**/**.md
+
+#diagrams
+diagrams/*.md
+diagrams/**/*.md
+diagrams/**/**.md
+
+#adr
+adr/*.md
+adr/**/*.md
+adr/**/**.md
+
+#architecture
+architecture/*.md
+architecture/**/*.md
+architecture/**/**.md
+
+#docs/architecture
+docs/architecture/
+docs/architecture/*.md
+docs/architecture/**/*.md
+docs/architecture/**/**.md
+
+#adr-template
+adr-template/*.md
+adr-template/**/*.md
+adr-template/**/**.md
+
+#adr-template
+adr-template/*.md
+adr-template/**/*.md
+adr-template/**/**.md
+
+#mobile-architecture
+mobile-architecture/*.md
+mobile-architecture/**/*.md
+mobile-architecture/**/**.md
+
+#mobile-architecture
+mobile-architecture/*.md
+mobile-architecture/**/*.md
+mobile-architecture/**/**.md
+
+#adr-template
+adr-template/*.md
+adr-template/**/*.md
+adr-template/**/**.md
+
+#adr-template
+adr-template/*.md
+adr-template/**/*.md
+adr-template/**/**.md   
+
+#mobile-architecture
+mobile-architecture/*.md
+mobile-architecture/**/*.md
+mobile-architecture/**/**.md
+
+#adr-template
+adr-template/*.md
+adr-template/**/*.md
+adr-template/**/**.md
+
+#adr-template
+adr-template/*.md
+adr-template/**/*.md
+adr-template/**/**.md
+

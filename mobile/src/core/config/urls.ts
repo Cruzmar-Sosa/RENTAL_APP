@@ -26,6 +26,13 @@ export const APP_URLS = {
     cancel: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/cancel`,
     getPin: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/pin`,
     verifyPin: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/verify-pin`,
+    settlementPreview: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/settlement-preview`,
+  },
+  payments: {
+    create: `${environmentConfig.apiUrl}/payments`,
+    my: `${environmentConfig.apiUrl}/payments/my`,
+    pay: (id: string) => `${environmentConfig.apiUrl}/payments/${id}/pay`,
+    reserveIntent: `${environmentConfig.apiUrl}/payments/reserve-intent`,
   },
   tracking: {
     websocketGateway: environmentConfig.trackingUrl,

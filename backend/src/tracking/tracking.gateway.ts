@@ -9,163 +9,186 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { TrackingService } from './tracking.service';
+import { RedisService } from './redis.service';
 import { Logger } from '@nestjs/common';
 
-interface ActiveSession {
-  socketId: string;
-  connection: 'connected' | 'disconnected';
-  lastUpdateAt: number;
-  lastDbUpdateAt: number;
-  timeoutRef?: NodeJS.Timeout;
+interface IncomingLocationPayload {
+  bikeId: string;
+  lat?: number;
+  lng?: number;
+  latitude?: number;
+  longitude?: number;
+  speed?: number;
+  heading?: number;
+  batteryLevel?: number;
+  frameId?: string;
+  rideId?: string;
+  deviceId?: string;
+  timestamp?: string;
 }
 
 @WebSocketGateway({
   namespace: '/tracking',
   path: '/socket.io',
   cors: {
-    origin: '*', // For development, in prod restrict this
+    origin: '*',
   },
 })
-export class TrackingGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
   private readonly logger = new Logger(TrackingGateway.name);
+  private lastDbUpdateAtMap = new Map<string, number>();
 
-  // Session Lock mechanism mapping bikeId -> ActiveSession
-  private activeSessions = new Map<string, ActiveSession>();
-  private socketToBike = new Map<string, string>();
-
-  constructor(private readonly trackingService: TrackingService) {}
+  constructor(
+    private readonly trackingService: TrackingService,
+    private readonly redisService: RedisService
+  ) {}
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    this.logger.log(`[Socket] Client connected: ${client.id}`);
   }
 
-  handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
-    const bikeId = this.socketToBike.get(client.id);
+  async handleDisconnect(client: Socket) {
+    this.logger.log(`[Socket] Client disconnected: ${client.id}`);
+    const bikeId = await this.redisService.getBikeBySocket(client.id);
     if (bikeId) {
-      this.clearSession(bikeId);
-      this.socketToBike.delete(client.id);
+      await this.clearSession(bikeId);
     }
   }
 
-  private clearSession(bikeId: string) {
-    const session = this.activeSessions.get(bikeId);
-    if (session && session.timeoutRef) {
-      clearTimeout(session.timeoutRef);
-    }
-    this.activeSessions.delete(bikeId);
+  private async clearSession(bikeId: string) {
+    this.logger.log(`[Session] Clearing tracking session for bikeId=${bikeId}`);
+    await this.redisService.clearSession(bikeId);
+    this.lastDbUpdateAtMap.delete(bikeId);
 
-    // Notify dashboard that bike is completely disconnected / session ended
-    this.server.to('fleet_dashboard').emit('location_updated', {
-      bikeId,
-      connection: 'disconnected',
-      timestamp: new Date().toISOString(),
-    });
+    // Notify fleet dashboard of bike disconnect
+    if (this.server) {
+      this.server.to('fleet_dashboard').emit('location_updated', {
+        bikeId,
+        connection: 'disconnected',
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 
-  // Dashboard users will join a special room to receive fleet updates
   @SubscribeMessage('join_dashboard')
   async handleJoinDashboard(@ConnectedSocket() client: Socket) {
     await client.join('fleet_dashboard');
-    this.logger.log(`Client ${client.id} joined dashboard tracking`);
+    this.logger.log(`[Dashboard] Client ${client.id} joined fleet_dashboard tracking`);
     return { status: 'ok', joined: true };
   }
 
   @SubscribeMessage('update_location')
   async handleUpdateLocation(
     @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: { bikeId: string; lat: number; lng: number; speed: number },
+    @MessageBody() payload: IncomingLocationPayload
   ) {
-    this.logger.log(`📍 LOCATION RECEIVED: ${JSON.stringify(data)}`);
-    const now = Date.now();
+    // 0. Payload Normalization (Supports legacy {lat, lng} & canonical {latitude, longitude})
+    const lat = payload.latitude ?? payload.lat;
+    const lng = payload.longitude ?? payload.lng;
+    const bikeId = payload.bikeId;
 
-    // 0. Bike Validation
-    const bikeExists = await this.trackingService.checkBikeExists(data.bikeId);
+    if (!bikeId || lat === undefined || lng === undefined) {
+      this.logger.warn(`[Telemetry] Rejected invalid payload structure from socket ${client.id}`);
+      client.emit('tracking_error', { message: '🚫 Formato de datos de telemetría inválido' });
+      return { error: 'Invalid payload' };
+    }
+
+    // Bounds check
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      this.logger.warn(`[Telemetry] Rejected out-of-bounds coords (lat=${lat}, lng=${lng}) for bikeId=${bikeId}`);
+      client.emit('tracking_error', { message: '🚫 Coordenadas fuera de rango' });
+      return { error: 'Coordinates out of bounds' };
+    }
+
+    // 1. Deduplication Guard
+    if (payload.frameId) {
+      const isDup = await this.redisService.isDuplicateFrame(payload.frameId);
+      if (isDup) {
+        this.logger.debug(`[Telemetry] Suppressed duplicate frameId=${payload.frameId} for bikeId=${bikeId}`);
+        return { received: true, duplicate: true };
+      }
+    }
+
+    // 2. Bike Validation
+    const bikeExists = await this.trackingService.checkBikeExists(bikeId);
     if (!bikeExists) {
-      this.logger.warn(
-        `Rejected location update for unknown bike: ${data.bikeId}`,
-      );
-      client.emit('tracking_error', {
-        message: '🚫 Bicicleta no encontrada en el sistema',
-      });
+      this.logger.warn(`[Telemetry] Rejected location update for unknown bikeId=${bikeId}`);
+      client.emit('tracking_error', { message: '🚫 Bicicleta no encontrada en el sistema' });
       return { error: 'Bike not found' };
     }
 
-    // 1. Session Lock Validation
-    let session = this.activeSessions.get(data.bikeId);
-
-    if (session && session.socketId !== client.id) {
-      // Ocupada por otro
-      client.emit('tracking_error', {
-        message: '🚫 Tracking ya activo en otro dispositivo',
-      });
+    // 3. Session Lock Validation
+    const activeSession = await this.redisService.getSession(bikeId);
+    if (activeSession && activeSession.socketId !== client.id) {
+      this.logger.warn(`[Session Lock] Lock collision for bikeId=${bikeId} from socket ${client.id}`);
+      client.emit('tracking_error', { message: '🚫 Tracking ya activo en otro dispositivo' });
       return { error: 'Bike in use' };
     }
 
-    if (!session) {
-      // 2. New Session
-      session = {
+    const now = Date.now();
+    const nowIso = new Date().toISOString();
+
+    // 4. Update Presence & Session Lock
+    if (!activeSession) {
+      this.logger.log(`[Session] Created active tracking lock for bikeId=${bikeId} rideId=${payload.rideId || 'N/A'}`);
+      await this.redisService.setSession(bikeId, {
+        rideId: payload.rideId,
+        bikeId,
         socketId: client.id,
-        connection: 'connected',
-        lastUpdateAt: now,
-        lastDbUpdateAt: 0,
-      };
-      this.activeSessions.set(data.bikeId, session);
-      this.socketToBike.set(client.id, data.bikeId);
-    } else {
-      // 3. Update Existing Session
-      session.connection = 'connected';
-      session.lastUpdateAt = now;
-      if (session.timeoutRef) clearTimeout(session.timeoutRef);
+        startedAt: nowIso,
+        lastSeenAt: nowIso,
+      });
     }
 
-    // 4. Setup timeout for 7 seconds grace period to switch to 'disconnected'
-    // State doesn't remove session, just indicates connectivity loss
-    session.timeoutRef = setTimeout(() => {
-      const s = this.activeSessions.get(data.bikeId);
-      if (s) {
-        s.connection = 'disconnected';
-        this.server.to('fleet_dashboard').emit('location_updated', {
-          bikeId: data.bikeId,
-          connection: 'disconnected',
-          timestamp: new Date().toISOString(),
-        });
-      }
-    }, 7000);
+    await this.redisService.setPresence(bikeId, {
+      socketId: client.id,
+      bikeId,
+      status: 'connected',
+      lastSeenAt: nowIso,
+      latitude: lat,
+      longitude: lng,
+    });
 
-    // 5. Throttle DB updates to max once every 3 seconds per bike
-    if (now - session.lastDbUpdateAt > 3000) {
+    // 5. Throttled DB Persistence (max once every 3 seconds per bike)
+    const lastDbUpdate = this.lastDbUpdateAtMap.get(bikeId) || 0;
+    if (now - lastDbUpdate > 3000) {
       try {
         await this.trackingService.create({
-          bikeId: data.bikeId,
-          latitude: data.lat,
-          longitude: data.lng,
-          speed: data.speed || 0,
+          frameId: payload.frameId,
+          rideId: payload.rideId,
+          deviceId: payload.deviceId,
+          bikeId,
+          latitude: lat,
+          longitude: lng,
+          speed: payload.speed || 0,
+          heading: payload.heading,
+          batteryLevel: payload.batteryLevel,
+          timestamp: payload.timestamp,
         });
-        session.lastDbUpdateAt = now;
+        this.lastDbUpdateAtMap.set(bikeId, now);
+        this.logger.debug(`[Telemetry DB] Persisted frame for bikeId=${bikeId} (speed=${payload.speed || 0}, batt=${payload.batteryLevel ?? 100}%)`);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        this.logger.error(
-          `Failed to save location for bike ${data.bikeId}: ${message}`,
-        );
+        this.logger.error(`[Telemetry DB] Failed to save location for bikeId=${bikeId}: ${message}`);
       }
     }
 
-    // 6. Broadcast to dashboard instantly
-    this.server.to('fleet_dashboard').emit('location_updated', {
-      bikeId: data.bikeId,
-      lat: data.lat,
-      lng: data.lng,
-      speed: data.speed,
-      connection: 'connected',
-      timestamp: new Date().toISOString(),
-    });
+    // 6. Real-time Dashboard Broadcast
+    if (this.server) {
+      this.server.to('fleet_dashboard').emit('location_updated', {
+        bikeId,
+        lat,
+        lng,
+        speed: payload.speed || 0,
+        heading: payload.heading,
+        batteryLevel: payload.batteryLevel,
+        connection: 'connected',
+        timestamp: nowIso,
+      });
+    }
 
     return { received: true };
   }
@@ -173,14 +196,13 @@ export class TrackingGateway
   @SubscribeMessage('stop_tracking')
   async handleStopTracking(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { bikeId: string },
+    @MessageBody() data: { bikeId: string }
   ) {
-    this.logger.log(`🛑 Stop tracking received for bike ${data.bikeId}`);
-    const session = this.activeSessions.get(data.bikeId);
+    this.logger.log(`[Session] Stop tracking requested for bikeId=${data.bikeId}`);
+    const session = await this.redisService.getSession(data.bikeId);
 
     if (session && session.socketId === client.id) {
-      this.clearSession(data.bikeId);
-      this.socketToBike.delete(client.id);
+      await this.clearSession(data.bikeId);
     }
     return { status: 'stopped' };
   }

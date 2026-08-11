@@ -201,6 +201,12 @@ export const ActiveReservationScreen: React.FC = () => {
             isLoading={isLoading}
             style={styles.actionBtn}
           />
+          <Button
+            title="View Settlement Preview"
+            variant="ghost"
+            onPress={() => router.push({ pathname: '/(app)/payments/settlement/[id]', params: { id: reservation.id } })}
+            style={styles.cancelBtn}
+          />
         </Card>
       )}
     </ScrollView>

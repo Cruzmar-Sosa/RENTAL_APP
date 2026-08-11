@@ -44,11 +44,19 @@ export class BikeRepository implements IBikeRepository {
 
   public async getBikeById(id: string): Promise<Nullable<Bike>> {
     try {
-      const bikes = await this.getAvailableBikes();
-      const found = bikes.find((b) => b.id === id);
-      return found || null;
+      const response = await this.httpClient.get<ApiBikeResponse | { data: ApiBikeResponse }>(
+        APP_URLS.bikes.byId(id)
+      );
+      const data = 'data' in response && response.data ? response.data : (response as ApiBikeResponse);
+      return this.mapToDomain(data);
     } catch {
-      return null;
+      // Fallback to searching available bikes
+      try {
+        const bikes = await this.getAvailableBikes();
+        return bikes.find((b) => b.id === id) || null;
+      } catch {
+        return null;
+      }
     }
   }
 }

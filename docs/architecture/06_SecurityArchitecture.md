@@ -447,9 +447,9 @@ Permissions
 
 Stations
 
-Tracking History
+Ride Summary Metadata (ride_id, start_time, end_time)
 
-Future
+Historical Tracking Storage
 
 TimescaleDB
 
@@ -463,7 +463,7 @@ Route reconstruction
 
 Analytics
 
-Presence
+Live Presence Cache
 
 Redis
 

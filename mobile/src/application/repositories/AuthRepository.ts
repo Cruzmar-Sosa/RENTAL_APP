@@ -8,13 +8,17 @@ import { APP_URLS } from '@core/config';
 
 interface ApiAuthResponse {
   user: UserProps;
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  access_token?: string;
+  refreshToken?: string;
+  refresh_token?: string;
 }
 
 interface ApiRefreshResponse {
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  access_token?: string;
+  refreshToken?: string;
+  refresh_token?: string;
 }
 
 export class AuthRepository implements IAuthRepository {
@@ -34,9 +38,12 @@ export class AuthRepository implements IAuthRepository {
 
     const payload = 'data' in response ? response.data : response;
 
+    const accessToken = payload.access_token || payload.accessToken || '';
+    const refreshToken = payload.refresh_token || payload.refreshToken || accessToken;
+
     const tokens: AuthTokens = {
-      accessToken: payload.accessToken,
-      refreshToken: payload.refreshToken,
+      accessToken,
+      refreshToken,
     };
 
     const user = new User(payload.user);
@@ -56,9 +63,12 @@ export class AuthRepository implements IAuthRepository {
 
     const payload = 'data' in response ? response.data : response;
 
+    const accessToken = payload.access_token || payload.accessToken || '';
+    const refreshToken = payload.refresh_token || payload.refreshToken || accessToken;
+
     const tokens: AuthTokens = {
-      accessToken: payload.accessToken,
-      refreshToken: payload.refreshToken,
+      accessToken,
+      refreshToken,
     };
 
     await this.secureStorage.setItem(STORAGE_KEYS.SECURE.ACCESS_TOKEN, tokens.accessToken);

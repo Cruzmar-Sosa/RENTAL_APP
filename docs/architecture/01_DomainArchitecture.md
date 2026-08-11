@@ -429,6 +429,8 @@ Tracking never decides business state.
 
 Tracking only reports telemetry.
 
+> ℹ️ **Architectural Note on Domain vs. Platform**: While the Tracking Domain represents a logical bounded context in the business domain map, its physical implementation evolves into an independent infrastructure platform (**Tracking Platform**) in Phase 3+ per [`03_TrackingArchitecture.md`](file:///c:/Users/cruzm/Documents/DEV'S-WEB/RENTAL_APP/docs/architecture/03_TrackingArchitecture.md) and [`07_ScalabilityRoadmap.md`](file:///c:/Users/cruzm/Documents/DEV'S-WEB/RENTAL_APP/docs/architecture/07_ScalabilityRoadmap.md).
+
 ## Owns
 
 BikeLocation

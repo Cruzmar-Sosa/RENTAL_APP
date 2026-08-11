@@ -14,12 +14,29 @@ export class TrackingService {
       throw new NotFoundException('Bike not found');
     }
 
+    // Check frameId uniqueness if frameId was supplied
+    if (data.frameId) {
+      const existing = await this.prisma.bikeLocation.findUnique({
+        where: { frameId: data.frameId },
+        select: { id: true },
+      });
+      if (existing) {
+        return existing; // Idempotent return — duplicate frame ignored
+      }
+    }
+
     return this.prisma.bikeLocation.create({
       data: {
+        frameId: data.frameId || null,
+        rideId: data.rideId || null,
         bikeId: data.bikeId,
         latitude: data.latitude,
         longitude: data.longitude,
         speed: data.speed || 0,
+        heading: data.heading || null,
+        batteryLevel: data.batteryLevel !== undefined ? data.batteryLevel : 100,
+        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+        receivedAt: new Date(),
       },
     });
   }
