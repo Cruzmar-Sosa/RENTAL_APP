@@ -4,16 +4,18 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Typography, Button, Card } from '@design-system/components';
 import { COLORS, SPACING, RADIUS } from '@design-system/theme';
 import { useReservation } from '../hooks/useReservation';
+import { safeGoBack } from '@core/navigation/safeGoBack';
 
 export const ReservationCreationScreen: React.FC = () => {
   const router = useRouter();
-  const params = useLocalSearchParams<{ bikeId: string; bikeCode?: string }>();
+  const params = useLocalSearchParams<{ bikeId: string; bikeCode?: string; ratePerHour?: string }>();
   const { createReservation, isLoading, error } = useReservation();
 
   const [paymentOption, setPaymentOption] = useState<'DEPOSIT' | 'FULL' | 'LATER'>('DEPOSIT');
 
   const bikeId = params.bikeId || '';
   const bikeCode = params.bikeCode || 'N/A';
+  const rateDisplay = params.ratePerHour ? `$${params.ratePerHour} / hr` : '$50.00 / hr';
 
   const handleCreate = async () => {
     if (!bikeId) return;
@@ -26,6 +28,10 @@ export const ReservationCreationScreen: React.FC = () => {
     } catch {
       // Error handled by hook
     }
+  };
+
+  const handleCancel = () => {
+    safeGoBack(router, '/(app)/map');
   };
 
   return (
@@ -115,7 +121,7 @@ export const ReservationCreationScreen: React.FC = () => {
             Rate per Hour
           </Typography>
           <Typography variant="body" weight="bold">
-            $50.00 / hr
+            {rateDisplay}
           </Typography>
         </View>
       </Card>
@@ -130,7 +136,7 @@ export const ReservationCreationScreen: React.FC = () => {
       <Button
         title="Cancel"
         variant="ghost"
-        onPress={() => router.back()}
+        onPress={handleCancel}
         style={styles.cancelBtn}
       />
     </ScrollView>

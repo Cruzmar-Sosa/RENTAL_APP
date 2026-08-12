@@ -11,6 +11,7 @@ export interface BikeProps {
   stationId: string | null;
   imageUrl: string | null;
   depositRequired: boolean;
+  ratePerHour?: number;
 }
 
 export class Bike {
@@ -30,6 +31,9 @@ export class Bike {
   }
   public get technicalStatus(): TechnicalStatus {
     return this.props.technicalStatus;
+  }
+  public get ratePerHour(): number {
+    return this.props.ratePerHour ?? 50;
   }
 
   public isAvailableForReservation(): boolean {

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Typography, Card, Button, Loading } from '@design-system/components';
-import { COLORS, SPACING, RADIUS } from '@design-system/theme';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '@design-system/theme';
 import { useReservation } from '../hooks/useReservation';
+import { safeGoBack } from '@core/navigation/safeGoBack';
 
 export const PinScreen: React.FC = () => {
   const router = useRouter();
@@ -17,34 +18,47 @@ export const PinScreen: React.FC = () => {
     }
   }, [id]);
 
+  const handleBack = () => {
+    safeGoBack(router, id ? `/(app)/reservation/${id}` : '/(app)/map');
+  };
+
   return (
     <View style={styles.container}>
-      <Card style={styles.card}>
-        <Typography variant="h2" align="center" style={styles.title}>
-          Check-in PIN
+      <Card variant="glass" style={styles.card}>
+        <View style={styles.securityHeader}>
+          <Typography variant="caption" color={COLORS.primary.light} weight="bold" style={styles.securityBadge}>
+            🔒 SECURE CHECK-IN CODE
+          </Typography>
+        </View>
+
+        <Typography variant="h2" color={COLORS.neutral.textPrimary} align="center" style={styles.title}>
+          Station Unlock PIN
         </Typography>
         <Typography variant="body" color={COLORS.neutral.textSecondary} align="center" style={styles.subtitle}>
-          Show this PIN code to the station operator to verify physical bike pickup.
+          Present this 6-digit code to the station operator or enter it on the dock console to unlock your bike.
         </Typography>
 
         {isLoading ? (
-          <Loading message="Generating PIN..." />
+          <Loading message="Generating single-use PIN..." />
         ) : pin ? (
           <View style={styles.pinContainer}>
-            <Typography variant="h1" color={COLORS.primary.main} align="center" style={styles.pinText}>
+            <Typography variant="caption" color={COLORS.neutral.textSecondary} style={styles.pinLabel}>
+              ONE-TIME PICKUP PIN
+            </Typography>
+            <Typography variant="h1" color={COLORS.primary.light} align="center" style={styles.pinText}>
               {pin}
             </Typography>
           </View>
         ) : (
           <Typography variant="caption" color={COLORS.status.maintenance} align="center">
-            {error || 'Could not retrieve PIN'}
+            {error || 'Could not retrieve PIN. Please retry.'}
           </Typography>
         )}
 
         <Button
           title="Back to Reservation"
           variant="outline"
-          onPress={() => router.back()}
+          onPress={handleBack}
           style={styles.backBtn}
         />
       </Card>
@@ -55,12 +69,20 @@ export const PinScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.primary.main,
+    backgroundColor: COLORS.neutral.background,
     justifyContent: 'center',
     padding: SPACING.lg,
   },
   card: {
     padding: SPACING.xl,
+    backgroundColor: COLORS.neutral.surface,
+  },
+  securityHeader: {
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  securityBadge: {
+    letterSpacing: 1,
   },
   title: {
     marginBottom: SPACING.xs,
@@ -69,19 +91,26 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   pinContainer: {
-    backgroundColor: '#F0FDFA',
-    padding: SPACING.lg,
+    backgroundColor: 'rgba(15, 118, 110, 0.15)',
+    padding: SPACING.xl,
     borderRadius: RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.primary.main,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary.light,
     marginBottom: SPACING.xl,
     alignItems: 'center',
+    ...SHADOWS.glowTeal,
+  },
+  pinLabel: {
+    letterSpacing: 1.5,
+    fontSize: 10,
+    marginBottom: SPACING.xs,
   },
   pinText: {
     fontSize: 48,
-    letterSpacing: 8,
+    letterSpacing: 10,
+    fontWeight: '800',
   },
   backBtn: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
   },
 });

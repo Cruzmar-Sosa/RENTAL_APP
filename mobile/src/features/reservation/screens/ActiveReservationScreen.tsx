@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Typography, Card, Button, Loading, EmptyState } from '@design-system/components';
+import { Typography, Card, Button, Loading, EmptyState, Badge } from '@design-system/components';
 import { COLORS, SPACING, RADIUS } from '@design-system/theme';
 import { useReservation } from '../hooks/useReservation';
-import { trackingEngine } from '@platform/container';
+import { trackingEngine, permissionManager, connectivityManager } from '@platform/container';
 
 export const ActiveReservationScreen: React.FC = () => {
   const router = useRouter();
   const { activeReservation, fetchActiveReservation, startRide, completeRide, cancelReservation, isLoading, error } = useReservation();
   const [trackingState, setTrackingState] = useState<string>(trackingEngine.getState());
+  const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
+  const [showEndModal, setShowEndModal] = useState<boolean>(false);
 
   useEffect(() => {
     fetchActiveReservation();
@@ -20,15 +22,15 @@ export const ActiveReservationScreen: React.FC = () => {
   }, [fetchActiveReservation]);
 
   if (isLoading && !activeReservation) {
-    return <Loading message="Loading active reservation..." />;
+    return <Loading message="Syncing active rental state with backend..." />;
   }
 
   if (!activeReservation) {
     return (
       <EmptyState
-        title="No Active Reservation"
-        description="You do not currently have any active bike reservations."
-        actionTitle="Find a Bike"
+        title="No Active Ride"
+        description="You do not currently have any active bike reservations or ongoing rides."
+        actionTitle="Browse Stations Map"
         onAction={() => router.replace('/(app)/map')}
       />
     );
@@ -38,13 +40,21 @@ export const ActiveReservationScreen: React.FC = () => {
   const statusValue = reservation.props.status.value;
 
   const handleStartRide = async () => {
+    setOfflineNotice(null);
+    const isOnline = await connectivityManager.isOnline();
+    if (!isOnline) {
+      setOfflineNotice('Internet connection required to start your ride.');
+      return;
+    }
+
+    const perm = await permissionManager.requestLocation();
+    if (perm !== 'granted') {
+      setOfflineNotice('Location permission is required to enable GPS tracking for your ride.');
+      return;
+    }
+
     try {
       const updated = await startRide(reservation.id);
-
-      // =========================================================================
-      // 🚀 SPRINT 3 INTEGRATION POINT CONNECTED
-      // Launch real-time background GPS tracking upon active ride confirmation
-      // =========================================================================
       await trackingEngine.start({
         rideId: updated.id,
         bikeId: updated.bikeId,
@@ -55,14 +65,21 @@ export const ActiveReservationScreen: React.FC = () => {
     }
   };
 
-  const handleCompleteRide = async () => {
+  const handleConfirmEndRide = async () => {
+    setShowEndModal(false);
+    setOfflineNotice(null);
+    const isOnline = await connectivityManager.isOnline();
+    if (!isOnline) {
+      setOfflineNotice('Internet connection required to end your ride.');
+      return;
+    }
+
     try {
-      // Stop telemetry tracking on ride completion
       await trackingEngine.stop();
       setTrackingState(trackingEngine.getState());
 
       await completeRide(reservation.id, reservation.props.bike?.stationId || 'default-station');
-      router.replace('/(app)/map');
+      router.replace({ pathname: '/(app)/payments/settlement/[id]', params: { id: reservation.id } });
     } catch {
       // Error handled by hook
     }
@@ -70,7 +87,6 @@ export const ActiveReservationScreen: React.FC = () => {
 
   const handleCancel = async () => {
     try {
-      // Stop telemetry tracking on cancellation
       await trackingEngine.stop();
       setTrackingState(trackingEngine.getState());
 
@@ -81,81 +97,89 @@ export const ActiveReservationScreen: React.FC = () => {
     }
   };
 
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'available';
+      case 'CHECKED_IN':
+        return 'secondary';
+      case 'CONFIRMED':
+        return 'primary';
+      case 'SETTLEMENT_PENDING':
+        return 'reserved';
+      default:
+        return 'neutral';
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Typography variant="h1" style={styles.title}>
-        Active Ride
-      </Typography>
+      <View style={styles.header}>
+        <Typography variant="caption" color={COLORS.primary.light} weight="bold" style={styles.brandTag}>
+          ⚡ LIVE TELEMETRY DASHBOARD
+        </Typography>
+        <Typography variant="h1" color={COLORS.neutral.textPrimary} style={styles.headerTitle}>
+          Active Ride
+        </Typography>
+      </View>
 
-      {error ? (
+      {(error || offlineNotice) && (
         <View style={styles.errorBox}>
           <Typography variant="caption" color={COLORS.status.maintenance} align="center">
-            {error}
+            {offlineNotice || error}
           </Typography>
         </View>
-      ) : null}
+      )}
 
-      <Card style={styles.card}>
+      {/* Main Reservation Card */}
+      <Card variant="glass" style={styles.card}>
         <View style={styles.statusRow}>
-          <Typography variant="h2">Reservation #{reservation.props.code}</Typography>
-          <View style={[styles.statusBadge, getStatusBadgeStyle(statusValue)]}>
-            <Typography variant="caption" weight="bold" color="#FFFFFF">
-              {statusValue}
+          <Typography variant="h2" color={COLORS.neutral.textPrimary}>
+            Ride #{reservation.props.code}
+          </Typography>
+          <Badge label={statusValue} variant={getStatusVariant(statusValue)} showDot />
+        </View>
+
+        <View style={styles.infoGrid}>
+          <View style={styles.infoTile}>
+            <Typography variant="caption" color={COLORS.neutral.textSecondary}>Bike Code</Typography>
+            <Typography variant="h3" color={COLORS.primary.light}>#{reservation.props.bike?.code || 'N/A'}</Typography>
+          </View>
+
+          <View style={styles.infoTile}>
+            <Typography variant="caption" color={COLORS.neutral.textSecondary}>Start Time</Typography>
+            <Typography variant="body" weight="bold" color={COLORS.neutral.textPrimary}>
+              {new Date(reservation.props.startTime).toLocaleTimeString()}
+            </Typography>
+          </View>
+
+          <View style={styles.infoTile}>
+            <Typography variant="caption" color={COLORS.neutral.textSecondary}>Est. Rate</Typography>
+            <Typography variant="h3" color={COLORS.status.available}>
+              ${reservation.props.priceEstimated?.toFixed(2) || '50.00'}
+            </Typography>
+          </View>
+
+          <View style={styles.infoTile}>
+            <Typography variant="caption" color={COLORS.neutral.textSecondary}>GPS Engine</Typography>
+            <Typography variant="body" weight="bold" color={trackingState === 'ACTIVE' ? COLORS.status.available : COLORS.neutral.textSecondary}>
+              ● {trackingState}
             </Typography>
           </View>
         </View>
-
-        <View style={styles.infoRow}>
-          <Typography variant="body" color={COLORS.neutral.textSecondary}>
-            Bike Code:
-          </Typography>
-          <Typography variant="body" weight="bold">
-            #{reservation.props.bike?.code || 'N/A'}
-          </Typography>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Typography variant="body" color={COLORS.neutral.textSecondary}>
-            Start Time:
-          </Typography>
-          <Typography variant="body" weight="medium">
-            {new Date(reservation.props.startTime).toLocaleTimeString()}
-          </Typography>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Typography variant="body" color={COLORS.neutral.textSecondary}>
-            Estimated Cost:
-          </Typography>
-          <Typography variant="body" weight="bold" color={COLORS.primary.main}>
-            ${reservation.props.priceEstimated?.toFixed(2) || '50.00'}
-          </Typography>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Typography variant="body" color={COLORS.neutral.textSecondary}>
-            Tracking Status:
-          </Typography>
-          <Typography
-            variant="body"
-            weight="bold"
-            color={trackingState === 'ACTIVE' ? COLORS.status.available : COLORS.neutral.textSecondary}
-          >
-            ● {trackingState}
-          </Typography>
-        </View>
       </Card>
 
+      {/* Action Cards per Status */}
       {statusValue === 'CONFIRMED' && (
         <Card style={styles.actionCard}>
-          <Typography variant="h3" style={styles.actionTitle}>
-            Ready for Pickup
+          <Typography variant="h3" color={COLORS.primary.light} style={styles.actionTitle}>
+            Step 1: Check-in with Operator
           </Typography>
           <Typography variant="body" color={COLORS.neutral.textSecondary} style={styles.actionDesc}>
-            Show your check-in PIN to the station operator to unlock the bike.
+            Show your unique 6-digit PIN code to the station operator to unlock the bike.
           </Typography>
           <Button
-            title="View Check-in PIN"
+            title="View Check-in PIN Code"
             onPress={() => router.push({ pathname: '/(app)/reservation/pin/[id]', params: { id: reservation.id } })}
             style={styles.actionBtn}
           />
@@ -170,14 +194,14 @@ export const ActiveReservationScreen: React.FC = () => {
 
       {statusValue === 'CHECKED_IN' && (
         <Card style={styles.actionCard}>
-          <Typography variant="h3" style={styles.actionTitle}>
-            Operator Validated!
+          <Typography variant="h3" color={COLORS.secondary.light} style={styles.actionTitle}>
+            Step 2: Unlocked & Validated!
           </Typography>
           <Typography variant="body" color={COLORS.neutral.textSecondary} style={styles.actionDesc}>
-            Your bike is unlocked and ready to ride. Tap below to start your ride timer.
+            Your bike is unlocked. Tap below to launch GPS tracking and start your ride.
           </Typography>
           <Button
-            title="Start Ride & Tracking"
+            title="Start Ride & GPS Tracking"
             onPress={handleStartRide}
             isLoading={isLoading}
             style={styles.actionBtn}
@@ -186,18 +210,21 @@ export const ActiveReservationScreen: React.FC = () => {
       )}
 
       {statusValue === 'ACTIVE' && (
-        <Card style={styles.actionCard}>
-          <Typography variant="h3" color={COLORS.status.available} style={styles.actionTitle}>
-            Ride & GPS Tracking Active 🚲
-          </Typography>
+        <Card variant="glass" style={styles.activeRideCard}>
+          <View style={styles.activeHeader}>
+            <View style={styles.pulseDot} />
+            <Typography variant="subtitle" color={COLORS.status.available} weight="bold">
+              GPS STREAMING TO PLATFORM
+            </Typography>
+          </View>
           <Typography variant="body" color={COLORS.neutral.textSecondary} style={styles.actionDesc}>
-            Real-time GPS telemetry is streaming to the Tracking Platform.
+            Telemetry is syncing with Redis presence & Admin Web map in real time.
           </Typography>
 
           <Button
-            title="Complete Ride"
+            title="End Ride"
             variant="secondary"
-            onPress={handleCompleteRide}
+            onPress={() => setShowEndModal(true)}
             isLoading={isLoading}
             style={styles.actionBtn}
           />
@@ -209,22 +236,51 @@ export const ActiveReservationScreen: React.FC = () => {
           />
         </Card>
       )}
+
+      {statusValue === 'SETTLEMENT_PENDING' && (
+        <Card style={styles.actionCard}>
+          <Typography variant="h3" color={COLORS.secondary.light} style={styles.actionTitle}>
+            Ride Completed — Balance Due 💳
+          </Typography>
+          <Typography variant="body" color={COLORS.neutral.textSecondary} style={styles.actionDesc}>
+            Your ride session has finished. Please view and settle your final balance.
+          </Typography>
+          <Button
+            title="View Settlement & Pay Balance"
+            onPress={() => router.push({ pathname: '/(app)/payments/settlement/[id]', params: { id: reservation.id } })}
+            style={styles.actionBtn}
+          />
+        </Card>
+      )}
+
+      {/* End Ride Confirmation Modal */}
+      <Modal visible={showEndModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <Card style={styles.modalCard}>
+            <Typography variant="h2" color={COLORS.neutral.textPrimary} align="center" style={styles.modalTitle}>
+              Complete Ride?
+            </Typography>
+            <Typography variant="body" color={COLORS.neutral.textSecondary} align="center" style={styles.modalDesc}>
+              This will stop GPS telemetry, release the bike dock lock, and calculate final settlement fees.
+            </Typography>
+            <Button
+              title="Yes, End Ride"
+              onPress={handleConfirmEndRide}
+              isLoading={isLoading}
+              style={styles.modalBtn}
+            />
+            <Button
+              title="Keep Riding"
+              variant="ghost"
+              onPress={() => setShowEndModal(false)}
+              style={styles.modalCancelBtn}
+            />
+          </Card>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
-
-function getStatusBadgeStyle(status: string) {
-  switch (status) {
-    case 'ACTIVE':
-      return { backgroundColor: COLORS.status.available };
-    case 'CHECKED_IN':
-      return { backgroundColor: COLORS.secondary.main };
-    case 'CONFIRMED':
-      return { backgroundColor: COLORS.primary.main };
-    default:
-      return { backgroundColor: COLORS.neutral.disabled };
-  }
-}
 
 const styles = StyleSheet.create({
   container: {
@@ -234,9 +290,16 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING.lg,
   },
-  title: {
-    marginTop: SPACING.lg,
+  header: {
+    marginTop: SPACING.xl,
     marginBottom: SPACING.md,
+  },
+  brandTag: {
+    letterSpacing: 1,
+    marginBottom: SPACING.xxs,
+  },
+  headerTitle: {
+    marginBottom: SPACING.xs,
   },
   errorBox: {
     backgroundColor: '#FEE2E2',
@@ -256,18 +319,38 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral.border,
   },
-  statusBadge: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xxs,
-    borderRadius: RADIUS.sm,
-  },
-  infoRow: {
+  infoGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.xs,
+  },
+  infoTile: {
+    width: '48%',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    padding: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    marginBottom: SPACING.sm,
   },
   actionCard: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
+    backgroundColor: COLORS.neutral.surface,
+  },
+  activeRideCard: {
+    marginTop: SPACING.sm,
+    borderColor: COLORS.status.available,
+    borderWidth: 1,
+  },
+  activeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.status.available,
+    marginRight: SPACING.xs,
   },
   actionTitle: {
     marginBottom: SPACING.xs,
@@ -279,6 +362,30 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   cancelBtn: {
+    marginTop: SPACING.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  modalCard: {
+    width: '100%',
+    padding: SPACING.xl,
+    backgroundColor: COLORS.neutral.surface,
+  },
+  modalTitle: {
+    marginBottom: SPACING.xs,
+  },
+  modalDesc: {
+    marginBottom: SPACING.lg,
+  },
+  modalBtn: {
+    marginBottom: SPACING.xs,
+  },
+  modalCancelBtn: {
     marginTop: SPACING.xs,
   },
 });

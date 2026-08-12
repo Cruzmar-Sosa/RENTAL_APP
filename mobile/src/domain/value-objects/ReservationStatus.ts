@@ -11,7 +11,7 @@ export enum ReservationStatusEnum {
 }
 
 export class ReservationStatus {
-  constructor(public readonly value: ReservationStatusEnum) {}
+  constructor(public readonly value: ReservationStatusEnum) { }
 
   public isTerminal(): boolean {
     return (

@@ -3,28 +3,47 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 're
 import { useRouter } from 'expo-router';
 import { Typography, Button, Input, Card } from '@design-system/components';
 import { COLORS, SPACING } from '@design-system/theme';
+import { useAuth } from '../hooks/useAuth';
+import { safeGoBack } from '@core/navigation/safeGoBack';
 
 export const RegisterScreen: React.FC = () => {
   const router = useRouter();
+  const { register, isLoading, error: apiError } = useAuth();
+
   const [fullName, setFullName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
-      setError('All fields are required.');
+      setValidationError('All fields are required.');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setValidationError('Passwords do not match.');
       return;
     }
-    setError(null);
-    // Future registration flow
-    router.replace('/(auth)/login');
+    setValidationError(null);
+
+    try {
+      await register({
+        email: email.trim(),
+        password,
+        name: fullName.trim(),
+      });
+      router.replace('/(app)/map');
+    } catch {
+      // API error handled by hook
+    }
   };
+
+  const handleBackToLogin = () => {
+    safeGoBack(router, '/(auth)/login');
+  };
+
+  const displayError = validationError || apiError;
 
   return (
     <KeyboardAvoidingView
@@ -43,13 +62,13 @@ export const RegisterScreen: React.FC = () => {
             Create Account
           </Typography>
 
-          {error && (
+          {displayError ? (
             <View style={styles.errorBox}>
               <Typography variant="caption" color={COLORS.status.maintenance} align="center">
-                {error}
+                {displayError}
               </Typography>
             </View>
-          )}
+          ) : null}
 
           <Input
             label="Full Name"
@@ -86,13 +105,14 @@ export const RegisterScreen: React.FC = () => {
           <Button
             title="Register"
             onPress={handleRegister}
+            isLoading={isLoading}
             style={styles.submitBtn}
           />
 
           <Button
             title="Already have an account? Sign In"
             variant="ghost"
-            onPress={() => router.back()}
+            onPress={handleBackToLogin}
             style={styles.backBtn}
           />
         </Card>

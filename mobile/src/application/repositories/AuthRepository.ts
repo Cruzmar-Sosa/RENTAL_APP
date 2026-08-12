@@ -1,4 +1,4 @@
-import { IAuthRepository, LoginCredentials, AuthTokens } from '@domain/repositories/IAuthRepository';
+import { IAuthRepository, LoginCredentials, RegisterParams, AuthTokens } from '@domain/repositories/IAuthRepository';
 import { User, UserProps } from '@domain/entities/User';
 import { IHttpClient } from '@platform/api';
 import { ISecureStorage } from '@platform/storage';
@@ -33,6 +33,36 @@ export class AuthRepository implements IAuthRepository {
       {
         email: credentials.email,
         password: credentials.pass,
+      }
+    );
+
+    const payload = 'data' in response ? response.data : response;
+
+    const accessToken = payload.access_token || payload.accessToken || '';
+    const refreshToken = payload.refresh_token || payload.refreshToken || accessToken;
+
+    const tokens: AuthTokens = {
+      accessToken,
+      refreshToken,
+    };
+
+    const user = new User(payload.user);
+
+    await this.secureStorage.setItem(STORAGE_KEYS.SECURE.ACCESS_TOKEN, tokens.accessToken);
+    await this.secureStorage.setItem(STORAGE_KEYS.SECURE.REFRESH_TOKEN, tokens.refreshToken);
+    this.httpClient.setAuthorizationHeader(tokens.accessToken);
+
+    return { user, tokens };
+  }
+
+  public async register(params: RegisterParams): Promise<{ user: User; tokens: AuthTokens }> {
+    const response = await this.httpClient.post<{ data: ApiAuthResponse } | ApiAuthResponse>(
+      APP_URLS.auth.register,
+      {
+        email: params.email,
+        password: params.password,
+        name: params.name,
+        phone: params.phone,
       }
     );
 

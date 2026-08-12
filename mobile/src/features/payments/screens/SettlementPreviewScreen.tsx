@@ -5,12 +5,14 @@ import { Typography, Card, Button, Loading, EmptyState } from '@design-system/co
 import { COLORS, SPACING, RADIUS } from '@design-system/theme';
 import { usePayments } from '../hooks/usePayments';
 import { SettlementPreview } from '@domain/entities/Settlement';
+import { safeGoBack } from '@core/navigation/safeGoBack';
 
 export const SettlementPreviewScreen: React.FC = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getSettlementPreview, createPayment, isLoading, error } = usePayments();
   const [preview, setPreview] = useState<SettlementPreview | null>(null);
+  const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
 
   useEffect(() => {
     if (id) {
@@ -24,10 +26,17 @@ export const SettlementPreviewScreen: React.FC = () => {
     if (!preview || preview.calculation.balance <= 0) return;
     try {
       await createPayment(preview.reservationId, preview.calculation.balance);
-      router.push('/(app)/payments');
+      setPaymentSuccess(true);
+      // Refresh preview to show zero balance
+      const updated = await getSettlementPreview(preview.reservationId);
+      if (updated) setPreview(updated);
     } catch {
       // Error handled by hook
     }
+  };
+
+  const handleBack = () => {
+    safeGoBack(router, id ? `/(app)/reservation/${id}` : '/(app)/map');
   };
 
   if (isLoading && !preview) {
@@ -46,11 +55,12 @@ export const SettlementPreviewScreen: React.FC = () => {
   }
 
   const calc = preview.calculation;
+  const isSettled = calc.balance <= 0 || paymentSuccess;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Typography variant="h1" style={styles.title}>
-        Settlement Summary
+        {isSettled ? 'Rental Receipt' : 'Settlement Summary'}
       </Typography>
 
       {error ? (
@@ -61,12 +71,23 @@ export const SettlementPreviewScreen: React.FC = () => {
         </View>
       ) : null}
 
+      {paymentSuccess && (
+        <Card style={styles.successBox}>
+          <Typography variant="h3" color={COLORS.status.available} align="center">
+            ✓ Payment Successful!
+          </Typography>
+          <Typography variant="body" color={COLORS.neutral.textSecondary} align="center">
+            Your rental balance has been fully settled. Thank you for riding with Rent_App!
+          </Typography>
+        </Card>
+      )}
+
       <Card style={styles.card}>
         <View style={styles.statusRow}>
           <Typography variant="h2">Reservation Details</Typography>
-          <View style={[styles.badge, { backgroundColor: COLORS.primary.main }]}>
+          <View style={[styles.badge, { backgroundColor: isSettled ? COLORS.status.available : COLORS.primary.main }]}>
             <Typography variant="caption" weight="bold" color="#FFFFFF">
-              {preview.status}
+              {isSettled ? 'SETTLED' : preview.status}
             </Typography>
           </View>
         </View>
@@ -122,19 +143,19 @@ export const SettlementPreviewScreen: React.FC = () => {
         </View>
 
         <View style={styles.row}>
-          <Typography variant="body" color={COLORS.status.available}>Already Paid</Typography>
-          <Typography variant="body" weight="bold" color={COLORS.status.available}>-${calc.totalPaid.toFixed(2)}</Typography>
+          <Typography variant="body" color={COLORS.status.available}>Total Paid</Typography>
+          <Typography variant="body" weight="bold" color={COLORS.status.available}>-${(calc.totalPaid + (paymentSuccess ? calc.balance : 0)).toFixed(2)}</Typography>
         </View>
 
         <View style={[styles.row, styles.balanceRow]}>
           <Typography variant="h2">Balance Due</Typography>
-          <Typography variant="h2" color={calc.balance > 0 ? COLORS.status.maintenance : COLORS.status.available}>
-            ${calc.balance.toFixed(2)}
+          <Typography variant="h2" color={isSettled ? COLORS.status.available : COLORS.status.maintenance}>
+            ${(paymentSuccess ? 0 : calc.balance).toFixed(2)}
           </Typography>
         </View>
       </Card>
 
-      {calc.balance > 0 ? (
+      {!isSettled ? (
         <Button
           title={`Pay Outstanding Balance ($${calc.balance.toFixed(2)})`}
           onPress={handlePayBalance}
@@ -142,12 +163,27 @@ export const SettlementPreviewScreen: React.FC = () => {
           style={styles.payBtn}
         />
       ) : (
-        <Card style={styles.settledCard}>
-          <Typography variant="h3" color={COLORS.status.available} align="center">
-            ✓ Fully Settled — No Balance Due
-          </Typography>
-        </Card>
+        <View>
+          <Button
+            title="View Payment History"
+            onPress={() => router.push('/(app)/payments')}
+            style={styles.payBtn}
+          />
+          <Button
+            title="Find Next Bike"
+            variant="outline"
+            onPress={() => router.replace('/(app)/map')}
+            style={styles.nextBikeBtn}
+          />
+        </View>
       )}
+
+      <Button
+        title="Back"
+        variant="ghost"
+        onPress={handleBack}
+        style={styles.backBtn}
+      />
     </ScrollView>
   );
 };
@@ -169,6 +205,14 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     borderRadius: SPACING.xs,
     marginBottom: SPACING.md,
+  },
+  successBox: {
+    backgroundColor: '#F0FDF4',
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+    borderColor: COLORS.status.available,
+    borderWidth: 1,
   },
   card: {
     marginBottom: SPACING.md,
@@ -209,11 +253,12 @@ const styles = StyleSheet.create({
   },
   payBtn: {
     marginTop: SPACING.md,
-    marginBottom: SPACING.xl,
   },
-  settledCard: {
-    marginTop: SPACING.md,
+  nextBikeBtn: {
+    marginTop: SPACING.sm,
+  },
+  backBtn: {
+    marginTop: SPACING.sm,
     marginBottom: SPACING.xl,
-    backgroundColor: '#F0FDF4',
   },
 });

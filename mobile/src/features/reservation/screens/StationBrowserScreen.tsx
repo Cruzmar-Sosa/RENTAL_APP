@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Typography, Card, Loading, EmptyState } from '@design-system/components';
+import { Typography, Card, Loading, EmptyState, Badge } from '@design-system/components';
 import { COLORS, SPACING, RADIUS } from '@design-system/theme';
 import { useStations } from '../hooks/useStations';
 import { Station } from '@domain/entities/Station';
@@ -13,7 +13,7 @@ export const StationBrowserScreen: React.FC = () => {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
 
   if (isLoading && stations.length === 0) {
-    return <Loading message="Loading rental stations..." />;
+    return <Loading message="Loading e-bike stations near you..." />;
   }
 
   if (error && stations.length === 0) {
@@ -21,7 +21,7 @@ export const StationBrowserScreen: React.FC = () => {
       <EmptyState
         title="Could not load stations"
         description={error}
-        actionTitle="Retry"
+        actionTitle="Retry Connection"
         onAction={refresh}
       />
     );
@@ -29,54 +29,58 @@ export const StationBrowserScreen: React.FC = () => {
 
   const renderStationCard = ({ item }: { item: Station }) => {
     const isSelected = selectedStation?.id === item.id;
+    const hasBikes = item.hasAvailableBikes();
+    const capacityRatio = item.capacity > 0 ? (item.availableDockCount / item.capacity) * 100 : 0;
+
     return (
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         onPress={() => setSelectedStation(isSelected ? null : item)}
       >
         <Card
-          variant={isSelected ? 'outlined' : 'elevated'}
+          variant={isSelected ? 'glass' : 'elevated'}
           style={[styles.card, ...(isSelected ? [styles.cardSelected] : [])]}
         >
           <View style={styles.cardHeader}>
             <View style={styles.titleBox}>
               <Typography variant="h3" color={COLORS.neutral.textPrimary}>
-                {item.name}
+                📍 {item.name}
               </Typography>
               {item.props.address ? (
-                <Typography variant="caption" color={COLORS.neutral.textSecondary}>
+                <Typography variant="caption" color={COLORS.neutral.textSecondary} style={styles.address}>
                   {item.props.address}
                 </Typography>
               ) : null}
             </View>
-            <View style={styles.badgeBox}>
-              <Typography
-                variant="caption"
-                weight="bold"
-                color={item.hasAvailableBikes() ? COLORS.status.available : COLORS.status.maintenance}
-              >
-                {item.availableBikeCount} bikes
-              </Typography>
-            </View>
+            <Badge
+              label={`${item.availableBikeCount} Bikes`}
+              variant={hasBikes ? 'available' : 'maintenance'}
+              showDot
+            />
           </View>
 
-          <View style={styles.detailsRow}>
-            <Typography variant="caption" color={COLORS.neutral.textSecondary}>
-              Capacity: {item.capacity} docks
-            </Typography>
-            <Typography variant="caption" color={COLORS.neutral.textSecondary}>
-              Free Docks: {item.availableDockCount}
-            </Typography>
+          <View style={styles.dockBarContainer}>
+            <View style={styles.dockBarHeader}>
+              <Typography variant="caption" color={COLORS.neutral.textSecondary}>
+                Free Docks ({item.availableDockCount}/{item.capacity})
+              </Typography>
+              <Typography variant="caption" color={COLORS.primary.light} weight="bold">
+                {Math.round(capacityRatio)}% Open
+              </Typography>
+            </View>
+            <View style={styles.progressBarTrack}>
+              <View style={[styles.progressBarFill, { width: `${Math.min(100, Math.max(0, capacityRatio))}%` }]} />
+            </View>
           </View>
 
           {isSelected && (
             <View style={styles.bikeListContainer}>
-              <Typography variant="subtitle" style={styles.bikeListTitle}>
-                Available Bikes
+              <Typography variant="subtitle" color={COLORS.primary.light} style={styles.bikeListTitle}>
+                Available Units at Station
               </Typography>
               {item.availableBikes.length === 0 ? (
                 <Typography variant="caption" color={COLORS.neutral.textSecondary}>
-                  No available bikes at this station right now.
+                  No available bikes docked at this station right now.
                 </Typography>
               ) : (
                 item.availableBikes.map((bike) => renderBikeItem(bike))
@@ -88,35 +92,71 @@ export const StationBrowserScreen: React.FC = () => {
     );
   };
 
-  const renderBikeItem = (bike: BikeProps) => (
-    <View key={bike.id} style={styles.bikeItem}>
-      <View>
-        <Typography variant="body" weight="medium">
-          Bike #{bike.code} {bike.model ? `(${bike.model})` : ''}
-        </Typography>
-        <Typography variant="caption" color={COLORS.neutral.textSecondary}>
-          Battery: {bike.batteryLevel}%
-        </Typography>
+  const renderBikeItem = (bike: BikeProps) => {
+    const batteryColor =
+      bike.batteryLevel >= 70
+        ? COLORS.status.available
+        : bike.batteryLevel >= 30
+        ? COLORS.status.reserved
+        : COLORS.status.maintenance;
+
+    return (
+      <View key={bike.id} style={styles.bikeItem}>
+        <View style={styles.bikeInfoLeft}>
+          <View style={styles.bikeBadgeIcon}>
+            <Typography variant="h3">🚲</Typography>
+          </View>
+          <View style={styles.bikeDetailsText}>
+            <Typography variant="body" weight="bold" color={COLORS.neutral.textPrimary}>
+              Unit #{bike.code} {bike.model ? `• ${bike.model}` : ''}
+            </Typography>
+            <View style={styles.batteryRow}>
+              <View style={[styles.batteryIndicatorDot, { backgroundColor: batteryColor }]} />
+              <Typography variant="caption" color={COLORS.neutral.textSecondary}>
+                Battery {bike.batteryLevel}% • Rate ${bike.ratePerHour || 50}/hr
+              </Typography>
+            </View>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.reserveBtn}
+          onPress={() =>
+            router.push({
+              pathname: '/(app)/reservation/new',
+              params: {
+                bikeId: bike.id,
+                bikeCode: String(bike.code),
+                ratePerHour: String(bike.ratePerHour || 50),
+              },
+            })
+          }
+        >
+          <Typography variant="caption" color={COLORS.primary.contrast} weight="bold">
+            Reserve
+          </Typography>
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={styles.reserveBtn}
-        onPress={() => router.push({ pathname: '/(app)/reservation/new', params: { bikeId: bike.id, bikeCode: String(bike.code) } })}
-      >
-        <Typography variant="caption" color={COLORS.primary.contrast} weight="bold">
-          Reserve
-        </Typography>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Typography variant="h1" color={COLORS.neutral.textPrimary}>
-          Stations Map
+        <View style={styles.brandRow}>
+          <Typography variant="caption" color={COLORS.primary.light} weight="bold" style={styles.brandBadge}>
+            ⚡ RENT_APP MOBILITY
+          </Typography>
+          <Typography variant="caption" color={COLORS.status.available}>
+            ● Live Network
+          </Typography>
+        </View>
+        <Typography variant="h1" color={COLORS.neutral.textPrimary} style={styles.headerTitle}>
+          Stations & Fleet
         </Typography>
         <Typography variant="caption" color={COLORS.neutral.textSecondary}>
-          Select a station to view available bikes
+          Select a docking hub to view and reserve available e-bikes
         </Typography>
       </View>
 
@@ -125,7 +165,7 @@ export const StationBrowserScreen: React.FC = () => {
         keyExtractor={(item) => item.id}
         renderItem={renderStationCard}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} tintColor={COLORS.primary.light} />}
         ListEmptyComponent={
           <EmptyState
             title="No stations found"
@@ -144,20 +184,33 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
-    paddingTop: SPACING.xl,
+    paddingTop: SPACING.xl + SPACING.sm,
     backgroundColor: COLORS.neutral.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral.border,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+  },
+  brandBadge: {
+    letterSpacing: 1,
+  },
+  headerTitle: {
+    marginBottom: SPACING.xxs,
   },
   listContent: {
     padding: SPACING.md,
   },
   card: {
     marginBottom: SPACING.md,
+    backgroundColor: COLORS.neutral.surface,
   },
   cardSelected: {
-    borderColor: COLORS.primary.main,
-    borderWidth: 2,
+    borderColor: COLORS.primary.light,
+    borderWidth: 1.5,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -168,19 +221,28 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: SPACING.sm,
   },
-  badgeBox: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xxs,
-    borderRadius: RADIUS.sm,
+  address: {
+    marginTop: SPACING.xxs,
   },
-  detailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  dockBarContainer: {
     marginTop: SPACING.sm,
     paddingTop: SPACING.xs,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.neutral.border,
+  },
+  dockBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xxs,
+  },
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: '#334155',
+    borderRadius: RADIUS.full || 999,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary.light,
+    borderRadius: RADIUS.full || 999,
   },
   bikeListContainer: {
     marginTop: SPACING.md,
@@ -189,20 +251,50 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.neutral.border,
   },
   bikeListTitle: {
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
+    fontWeight: '700',
   },
   bikeItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  bikeInfoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  bikeBadgeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(15, 118, 110, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
+  },
+  bikeDetailsText: {
+    flex: 1,
+  },
+  batteryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.xxs,
+  },
+  batteryIndicatorDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: SPACING.xs,
   },
   reserveBtn: {
     backgroundColor: COLORS.primary.main,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xs + 2,
     borderRadius: RADIUS.sm,
+    marginLeft: SPACING.sm,
   },
 });

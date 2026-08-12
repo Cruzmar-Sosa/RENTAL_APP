@@ -3,7 +3,7 @@ import { View, StyleSheet, ViewStyle, ViewProps } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 
 export interface CardProps extends ViewProps {
-  variant?: 'elevated' | 'outlined' | 'flat';
+  variant?: 'elevated' | 'outlined' | 'flat' | 'glass';
   style?: ViewStyle | ViewStyle[] | undefined;
   children: React.ReactNode;
 }
@@ -19,6 +19,7 @@ export const Card: React.FC<CardProps> = ({
       return {
         borderWidth: 1,
         borderColor: COLORS.neutral.border,
+        backgroundColor: COLORS.neutral.surface,
       };
     }
     if (variant === 'flat') {
@@ -26,7 +27,18 @@ export const Card: React.FC<CardProps> = ({
         backgroundColor: COLORS.neutral.background,
       };
     }
-    return SHADOWS.md;
+    if (variant === 'glass') {
+      return {
+        backgroundColor: COLORS.glass.surface,
+        borderWidth: 1,
+        borderColor: COLORS.glass.border,
+        ...SHADOWS.sm,
+      };
+    }
+    return {
+      backgroundColor: COLORS.neutral.surface,
+      ...SHADOWS.md,
+    };
   };
 
   return (
@@ -38,7 +50,6 @@ export const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.neutral.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
   },

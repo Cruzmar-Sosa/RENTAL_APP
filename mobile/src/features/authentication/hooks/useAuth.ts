@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@application/stores/auth.store';
 import { authRepository } from '@platform/container';
-import { LoginCredentials } from '@domain/repositories/IAuthRepository';
+import { LoginCredentials, RegisterParams } from '@domain/repositories/IAuthRepository';
 
 export function useAuth() {
   const { user, isAuthenticated, isInitializing, setAuth, clearAuth, setInitializing } = useAuthStore();
@@ -50,6 +50,22 @@ export function useAuth() {
     }
   };
 
+  const register = async (params: RegisterParams) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await authRepository.register(params);
+      setAuth(result.user, result.tokens.accessToken);
+      return result;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Registration failed. Please check your information.';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     setIsLoading(true);
     try {
@@ -67,6 +83,7 @@ export function useAuth() {
     isLoading,
     error,
     login,
+    register,
     logout,
   };
 }

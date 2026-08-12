@@ -6,7 +6,7 @@ import {
   TextStyle,
   TouchableOpacityProps,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../../theme';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { Typography } from '../Typography';
 
 export interface ButtonProps extends TouchableOpacityProps {
@@ -35,14 +35,14 @@ export const Button: React.FC<ButtonProps> = ({
   const disabled = isDisabled || isLoading;
 
   const getContainerStyle = (): ViewStyle => {
-    let bgStyle: ViewStyle = { backgroundColor: COLORS.primary.main };
+    let bgStyle: ViewStyle = { backgroundColor: COLORS.primary.main, ...SHADOWS.glowTeal };
     let borderStyle: ViewStyle = {};
 
     if (variant === 'secondary') {
-      bgStyle = { backgroundColor: COLORS.secondary.main };
+      bgStyle = { backgroundColor: COLORS.secondary.main, ...SHADOWS.glowIndigo };
     } else if (variant === 'outline') {
       bgStyle = { backgroundColor: 'transparent' };
-      borderStyle = { borderWidth: 1.5, borderColor: COLORS.primary.main };
+      borderStyle = { borderWidth: 1.5, borderColor: COLORS.primary.light };
     } else if (variant === 'ghost') {
       bgStyle = { backgroundColor: 'transparent' };
     }
@@ -71,8 +71,8 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const getTextColor = (): string => {
-    if (disabled) return COLORS.neutral.surface;
-    if (variant === 'outline' || variant === 'ghost') return COLORS.primary.main;
+    if (disabled) return '#94A3B8';
+    if (variant === 'outline' || variant === 'ghost') return COLORS.primary.light;
     return COLORS.primary.contrast;
   };
 

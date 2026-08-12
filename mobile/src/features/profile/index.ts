@@ -1,2 +1,1 @@
-// Feature module: profile
-export {};
+export * from './screens/ProfileScreen';
