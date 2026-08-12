@@ -25,6 +25,7 @@ export const APP_URLS = {
     complete: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/complete`,
     cancel: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/cancel`,
     getPin: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/pin`,
+    generatePin: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/generate-pin`,
     verifyPin: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/verify-pin`,
     settlementPreview: (id: string) => `${environmentConfig.apiUrl}/reservations/${id}/settlement-preview`,
   },
@@ -36,5 +37,9 @@ export const APP_URLS = {
   },
   tracking: {
     websocketGateway: environmentConfig.trackingUrl,
+  },
+  routes: {
+    list: `${environmentConfig.apiUrl}/routes`,
+    byId: (id: string) => `${environmentConfig.apiUrl}/routes/${id}`,
   },
 } as const;

@@ -26,7 +26,16 @@ export class ReservationStatus {
     return (
       this.value === ReservationStatusEnum.CONFIRMED ||
       this.value === ReservationStatusEnum.CHECKED_IN ||
-      this.value === ReservationStatusEnum.ACTIVE
+      this.value === ReservationStatusEnum.ACTIVE ||
+      this.value === ReservationStatusEnum.SETTLEMENT_PENDING
     );
+  }
+
+  public isSettlementPending(): boolean {
+    return this.value === ReservationStatusEnum.SETTLEMENT_PENDING;
+  }
+
+  public isRideActive(): boolean {
+    return this.value === ReservationStatusEnum.ACTIVE;
   }
 }

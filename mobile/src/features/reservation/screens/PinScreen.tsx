@@ -11,15 +11,26 @@ export const PinScreen: React.FC = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getPin, isLoading, error } = useReservation();
   const [pin, setPin] = useState<string | null>(null);
+  const [pinError, setPinError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
-      getPin(id).then(setPin).catch(() => {});
+      getPin(id)
+        .then(setPin)
+        .catch((err) => {
+          const msg = err instanceof Error ? err.message : 'Could not retrieve PIN.';
+          // If PIN was already verified (CHECKED_IN), inform the user instead of showing error
+          if (msg.includes('already verified') || msg.includes('Cannot regenerate')) {
+            setPinError('PIN already used — your reservation is already checked in. Proceed to Start Ride.');
+          } else {
+            setPinError(msg);
+          }
+        });
     }
   }, [id]);
 
   const handleBack = () => {
-    safeGoBack(router, id ? `/(app)/reservation/${id}` : '/(app)/map');
+    safeGoBack(router, id ? `/(app)/reservation/${id}` : '/(app)/home');
   };
 
   return (
@@ -32,26 +43,29 @@ export const PinScreen: React.FC = () => {
         </View>
 
         <Typography variant="h2" color={COLORS.neutral.textPrimary} align="center" style={styles.title}>
-          Station Unlock PIN
+          Station Check-in PIN
         </Typography>
         <Typography variant="body" color={COLORS.neutral.textSecondary} align="center" style={styles.subtitle}>
-          Present this 6-digit code to the station operator or enter it on the dock console to unlock your bike.
+          Show this 4-digit code to the station operator or admin to complete your bike check-in.
         </Typography>
 
         {isLoading ? (
-          <Loading message="Generating single-use PIN..." />
+          <Loading message="Generating check-in PIN..." />
         ) : pin ? (
           <View style={styles.pinContainer}>
             <Typography variant="caption" color={COLORS.neutral.textSecondary} style={styles.pinLabel}>
-              ONE-TIME PICKUP PIN
+              CHECK-IN PIN
             </Typography>
             <Typography variant="h1" color={COLORS.primary.light} align="center" style={styles.pinText}>
               {pin}
             </Typography>
+            <Typography variant="caption" color={COLORS.neutral.textSecondary} align="center" style={styles.pinHint}>
+              Show this to your operator
+            </Typography>
           </View>
         ) : (
           <Typography variant="caption" color={COLORS.status.maintenance} align="center">
-            {error || 'Could not retrieve PIN. Please retry.'}
+            {pinError || error || 'Could not retrieve PIN. Please retry.'}
           </Typography>
         )}
 
@@ -109,6 +123,10 @@ const styles = StyleSheet.create({
     fontSize: 48,
     letterSpacing: 10,
     fontWeight: '800',
+  },
+  pinHint: {
+    marginTop: SPACING.xs,
+    opacity: 0.7,
   },
   backBtn: {
     marginTop: SPACING.sm,

@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, Modal, BackHandler } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Typography, Card, Button, Loading, EmptyState, Badge } from '@design-system/components';
 import { COLORS, SPACING, RADIUS } from '@design-system/theme';
 import { useReservation } from '../hooks/useReservation';
+import { useRoutes } from '@features/routes/hooks/useRoutes';
+import { SuggestedRoutesCard } from '@features/routes/components/SuggestedRoutesCard';
 import { trackingEngine, permissionManager, connectivityManager } from '@platform/container';
 
 export const ActiveReservationScreen: React.FC = () => {
   const router = useRouter();
   const { activeReservation, fetchActiveReservation, startRide, completeRide, cancelReservation, isLoading, error } = useReservation();
+  const { routes } = useRoutes();
   const [trackingState, setTrackingState] = useState<string>(trackingEngine.getState());
   const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [showEndModal, setShowEndModal] = useState<boolean>(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   useEffect(() => {
     fetchActiveReservation();
@@ -20,6 +24,41 @@ export const ActiveReservationScreen: React.FC = () => {
     }, 2000);
     return () => clearInterval(interval);
   }, [fetchActiveReservation]);
+
+  const rawStatusValue = activeReservation?.props.status.value;
+
+  // Protect ACTIVE ride from accidental hardware back navigation (Android)
+  useEffect(() => {
+    if (rawStatusValue !== 'ACTIVE') return;
+
+    const onBackPress = () => {
+      setShowEndModal(true);
+      return true; // Block default back behavior
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [rawStatusValue]);
+
+  // Live ride duration timer calculated from actualStart timestamp
+  useEffect(() => {
+    if (rawStatusValue !== 'ACTIVE') return;
+
+    const computeElapsed = () => {
+      if (activeReservation?.props.actualStart) {
+        const startMs = new Date(activeReservation.props.actualStart).getTime();
+        const diffSec = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+        setElapsedSeconds(diffSec);
+      } else {
+        setElapsedSeconds((prev) => prev + 1);
+      }
+    };
+
+    computeElapsed();
+    const timer = setInterval(computeElapsed, 1000);
+
+    return () => clearInterval(timer);
+  }, [rawStatusValue, activeReservation?.props.actualStart]);
 
   if (isLoading && !activeReservation) {
     return <Loading message="Syncing active rental state with backend..." />;
@@ -30,8 +69,8 @@ export const ActiveReservationScreen: React.FC = () => {
       <EmptyState
         title="No Active Ride"
         description="You do not currently have any active bike reservations or ongoing rides."
-        actionTitle="Browse Stations Map"
-        onAction={() => router.replace('/(app)/map')}
+        actionTitle="Go to Home"
+        onAction={() => router.replace('/(app)/home')}
       />
     );
   }
@@ -60,8 +99,9 @@ export const ActiveReservationScreen: React.FC = () => {
         bikeId: updated.bikeId,
       });
       setTrackingState(trackingEngine.getState());
-    } catch {
-      // Error handled by hook
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to start ride. Please try again.';
+      setOfflineNotice(msg);
     }
   };
 
@@ -80,8 +120,9 @@ export const ActiveReservationScreen: React.FC = () => {
 
       await completeRide(reservation.id, reservation.props.bike?.stationId || 'default-station');
       router.replace({ pathname: '/(app)/payments/settlement/[id]', params: { id: reservation.id } });
-    } catch {
-      // Error handled by hook
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to end ride. Please try again.';
+      setOfflineNotice(msg);
     }
   };
 
@@ -91,9 +132,10 @@ export const ActiveReservationScreen: React.FC = () => {
       setTrackingState(trackingEngine.getState());
 
       await cancelReservation(reservation.id);
-      router.replace('/(app)/map');
-    } catch {
-      // Error handled by hook
+      router.replace('/(app)/home');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to cancel reservation.';
+      setOfflineNotice(msg);
     }
   };
 
@@ -170,13 +212,30 @@ export const ActiveReservationScreen: React.FC = () => {
       </Card>
 
       {/* Action Cards per Status */}
+      {statusValue === 'PENDING' && (
+        <Card style={styles.actionCard}>
+          <Typography variant="h3" color={COLORS.status.reserved} style={styles.actionTitle}>
+            Reservation Pending Confirmation
+          </Typography>
+          <Typography variant="body" color={COLORS.neutral.textSecondary} style={styles.actionDesc}>
+            Your reservation is held for 15 minutes. Complete payment on the web to confirm.
+          </Typography>
+          <Button
+            title="Cancel Reservation"
+            variant="ghost"
+            onPress={handleCancel}
+            style={styles.cancelBtn}
+          />
+        </Card>
+      )}
+
       {statusValue === 'CONFIRMED' && (
         <Card style={styles.actionCard}>
           <Typography variant="h3" color={COLORS.primary.light} style={styles.actionTitle}>
             Step 1: Check-in with Operator
           </Typography>
           <Typography variant="body" color={COLORS.neutral.textSecondary} style={styles.actionDesc}>
-            Show your unique 6-digit PIN code to the station operator to unlock the bike.
+            Show your unique 4-digit PIN code to the station operator to unlock the bike.
           </Typography>
           <Button
             title="View Check-in PIN Code"
@@ -217,6 +276,33 @@ export const ActiveReservationScreen: React.FC = () => {
               GPS STREAMING TO PLATFORM
             </Typography>
           </View>
+
+          {/* Live duration timer display */}
+          <View style={{ marginVertical: SPACING.sm, alignItems: 'center' }}>
+            <Typography variant="caption" color={COLORS.neutral.textSecondary}>ELAPSED RIDE TIME</Typography>
+            <Typography variant="h1" color={COLORS.primary.light} weight="bold">
+              {Math.floor(elapsedSeconds / 3600).toString().padStart(2, '0')}:
+              {Math.floor((elapsedSeconds % 3600) / 60).toString().padStart(2, '0')}:
+              {(elapsedSeconds % 60).toString().padStart(2, '0')}
+            </Typography>
+          </View>
+
+          {/* Telemetry Metrics Row */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around', backgroundColor: 'rgba(255,255,255,0.03)', padding: SPACING.sm, borderRadius: RADIUS.sm, marginBottom: SPACING.md }}>
+            <View style={{ alignItems: 'center' }}>
+              <Typography variant="caption" color={COLORS.neutral.textSecondary}>BATTERY</Typography>
+              <Typography variant="body" color={COLORS.status.available} weight="bold">
+                🔋 {reservation.props.bike?.batteryLevel ?? 100}%
+              </Typography>
+            </View>
+            <View style={{ alignItems: 'center' }}>
+              <Typography variant="caption" color={COLORS.neutral.textSecondary}>GPS STATUS</Typography>
+              <Typography variant="body" color={trackingState === 'ACTIVE' ? COLORS.status.available : COLORS.status.reserved} weight="bold">
+                📡 {trackingState}
+              </Typography>
+            </View>
+          </View>
+
           <Typography variant="body" color={COLORS.neutral.textSecondary} style={styles.actionDesc}>
             Telemetry is syncing with Redis presence & Admin Web map in real time.
           </Typography>
@@ -234,6 +320,7 @@ export const ActiveReservationScreen: React.FC = () => {
             onPress={() => router.push({ pathname: '/(app)/payments/settlement/[id]', params: { id: reservation.id } })}
             style={styles.cancelBtn}
           />
+          <SuggestedRoutesCard routes={routes} title="📍 Suggested Route Context & POIs" />
         </Card>
       )}
 
@@ -248,6 +335,40 @@ export const ActiveReservationScreen: React.FC = () => {
           <Button
             title="View Settlement & Pay Balance"
             onPress={() => router.push({ pathname: '/(app)/payments/settlement/[id]', params: { id: reservation.id } })}
+            style={styles.actionBtn}
+          />
+        </Card>
+      )}
+
+      {(statusValue === 'SETTLED' || statusValue === 'COMPLETED') && (
+        <Card style={styles.actionCard}>
+          <Typography variant="h3" color={COLORS.status.available} style={styles.actionTitle}>
+            Rental Settled & Completed ✅
+          </Typography>
+          <Typography variant="body" color={COLORS.neutral.textSecondary} style={styles.actionDesc}>
+            Thank you for riding! Your rental is fully paid and closed.
+          </Typography>
+          <Button
+            title="Back to Home"
+            variant="outline"
+            onPress={() => router.replace('/(app)/home')}
+            style={styles.actionBtn}
+          />
+        </Card>
+      )}
+
+      {(statusValue === 'CANCELLED' || statusValue === 'NO_SHOW') && (
+        <Card style={styles.actionCard}>
+          <Typography variant="h3" color={COLORS.status.maintenance} style={styles.actionTitle}>
+            Rental {statusValue}
+          </Typography>
+          <Typography variant="body" color={COLORS.neutral.textSecondary} style={styles.actionDesc}>
+            This reservation is no longer active.
+          </Typography>
+          <Button
+            title="Back to Home"
+            variant="outline"
+            onPress={() => router.replace('/(app)/home')}
             style={styles.actionBtn}
           />
         </Card>

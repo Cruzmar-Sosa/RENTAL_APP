@@ -13,6 +13,7 @@ export interface ReservationProps {
   endTime: string | null;
   checkInAt: string | null;
   checkInPin: string | null;
+  actualStart?: string | null | undefined;
   bike?: BikeProps | undefined;
 }
 

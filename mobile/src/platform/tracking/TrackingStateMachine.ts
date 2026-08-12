@@ -48,10 +48,19 @@ export class TrackingStateMachine implements ITrackingEngine {
       // Socket unavailable — offline queue handles buffering
     }
 
-    // Subscribe to reconnect events to proactively flush the offline telemetry queue
+    // Subscribe to socket & network reconnect events to proactively flush the offline telemetry queue
     this.removeReconnectListener = this.socketClient.onReconnect(() => {
       this.flushOfflineQueue().catch(() => {});
     });
+
+    const removeConn = this.connectivityManager.onReconnect(() => {
+      this.flushOfflineQueue().catch(() => {});
+    });
+    const prevReconnect = this.removeReconnectListener;
+    this.removeReconnectListener = () => {
+      prevReconnect?.();
+      removeConn();
+    };
 
     // Start GPS position watching (foreground or background depending on permissions)
     try {

@@ -1,5 +1,7 @@
-import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, UsePipes, ValidationPipe, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { RoutesService } from './routes.service';
+import { RouteMediaService } from './route-media.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
@@ -12,7 +14,10 @@ import { UpdatePoiDto } from './dto/update-poi.dto';
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 @Controller('routes')
 export class RoutesController {
-  constructor(private readonly routesService: RoutesService) {}
+  constructor(
+    private readonly routesService: RoutesService,
+    private readonly routeMediaService: RouteMediaService,
+  ) {}
 
   @Post()
   @Permissions('ROUTES', 'CREATE')
@@ -95,5 +100,34 @@ export class RoutesController {
   @Permissions('ROUTES', 'UPDATE')
   deletePoi(@Param('id') routeId: string, @Param('poiId') poiId: string) {
     return this.routesService.deletePoi(poiId);
+  }
+
+  // ─────────────────────────────────────────────
+  // Media Upload Endpoints
+  // ─────────────────────────────────────────────
+
+  @Post(':id/thumbnail')
+  @Permissions('ROUTES', 'UPDATE')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadThumbnail(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const result = await this.routeMediaService.processAndUploadThumbnail(id, file);
+    await this.routesService.update(id, { thumbnail: result.url });
+    return result;
+  }
+
+  @Post(':id/pois/:poiId/audio')
+  @Permissions('ROUTES', 'UPDATE')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPoiAudio(
+    @Param('id') routeId: string,
+    @Param('poiId') poiId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const result = await this.routeMediaService.uploadPoiAudio(poiId, file);
+    await this.routesService.updatePoi(poiId, { audioGuideUrl: result.url });
+    return result;
   }
 }

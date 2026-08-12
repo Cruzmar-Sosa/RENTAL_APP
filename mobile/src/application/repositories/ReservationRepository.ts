@@ -16,6 +16,7 @@ interface ApiReservationResponse {
   endTime: string | null;
   checkInAt: string | null;
   checkInPin: string | null;
+  actualStart?: string | null;
   bike?: {
     id: string;
     code: number;
@@ -45,6 +46,7 @@ export class ReservationRepository implements IReservationRepository {
       endTime: raw.endTime,
       checkInAt: raw.checkInAt,
       checkInPin: raw.checkInPin,
+      actualStart: raw.actualStart,
       ...(raw.bike
         ? {
             bike: {
@@ -95,10 +97,15 @@ export class ReservationRepository implements IReservationRepository {
   }
 
   public async getPin(reservationId: string): Promise<{ pin: string }> {
-    const response = await this.httpClient.get<{ pin: string } | { data: { pin: string } }>(
-      APP_URLS.reservations.getPin(reservationId)
-    );
-    return 'data' in response && response.data ? response.data : (response as { pin: string });
+    // Call POST /generate-pin — returns { pin, maskedPin, expiresIn }.
+    // The plaintext PIN is returned only at generation time.
+    // If already verified, the backend will throw (PIN already used).
+    const response = await this.httpClient.post<
+      { pin: string; maskedPin: string; expiresIn: number } | { data: { pin: string; maskedPin: string; expiresIn: number } }
+    >(APP_URLS.reservations.generatePin(reservationId), {});
+
+    const data = 'data' in response && response.data ? response.data : (response as { pin: string; maskedPin: string; expiresIn: number });
+    return { pin: data.pin };
   }
 
   public async verifyPin(reservationId: string, pinInput: string): Promise<{ valid: boolean }> {

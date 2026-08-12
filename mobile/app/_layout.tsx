@@ -28,7 +28,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(app)/map');
+      router.replace('/(app)/home');
     }
   }, [isAuthenticated, isInitializing, segments, router]);
 

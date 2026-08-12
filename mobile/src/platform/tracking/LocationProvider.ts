@@ -112,16 +112,17 @@ export class LocationProvider implements ILocationProvider {
       );
     }
 
-    // Step 2: Check background permission availability
-    const hasBg = await this.hasBackgroundPermission();
+    // Step 2: Check & request background permission availability
+    let hasBg = await this.hasBackgroundPermission();
+    if (!hasBg) {
+      hasBg = await this.requestBackgroundPermission().catch(() => false);
+    }
 
     if (hasBg) {
-      // ── Background path (app can be suspended) ──
+      // ── Background path (app can be suspended / minimized) ──
       return this.startBackgroundTracking(callback, intervalMs);
     } else {
       // ── Foreground path fallback ──
-      // Background permission not yet granted — use foreground watcher.
-      // This is fully functional when the app is in foreground.
       return this.startForegroundTracking(callback, intervalMs);
     }
   }

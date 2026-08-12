@@ -292,14 +292,20 @@ export class ReservationsService {
   async start(id: string, caller: any) {
     try {
       this.logger.log(`[START-RIDE] Starting ride for Reservation ${id}`);
-      if (caller.role !== 'ADMIN')
-        throw new ForbiddenException('Only admins can start rides');
 
       return await this.prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT * FROM "Reservation" WHERE id = ${id} FOR UPDATE`;
         const reservation = await tx.reservation.findUnique({ where: { id } });
         if (!reservation)
           throw new BadRequestException('Reservation not found');
+
+        // ADMIN can start any reservation.
+        // USER can only start their own reservation.
+        if (caller.role !== 'ADMIN' && reservation.userId !== caller.sub) {
+          throw new ForbiddenException(
+            'You do not have permission to start this ride.',
+          );
+        }
 
         this.lifecycle.validateTransition(reservation.status, 'ACTIVE');
 
@@ -343,8 +349,6 @@ export class ReservationsService {
   async complete(id: string, caller: any, dto?: CompleteRideDto) {
     try {
       this.logger.log(`[COMPLETE-RIDE] Ending ride for Reservation ${id}`);
-      if (caller.role !== 'ADMIN')
-        throw new ForbiddenException('Only admins can end rides');
 
       return await this.prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT * FROM "Reservation" WHERE id = ${id} FOR UPDATE`;
@@ -354,6 +358,14 @@ export class ReservationsService {
         });
         if (!reservation)
           throw new BadRequestException('Reservation not found');
+
+        // ADMIN can complete any reservation (with full dto override).
+        // USER can only complete their own reservation (no dto overrides).
+        if (caller.role !== 'ADMIN' && reservation.userId !== caller.sub) {
+          throw new ForbiddenException(
+            'You do not have permission to end this ride.',
+          );
+        }
 
         this.lifecycle.validateTransition(reservation.status, 'COMPLETED');
 

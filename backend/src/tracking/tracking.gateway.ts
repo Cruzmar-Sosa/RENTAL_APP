@@ -33,6 +33,7 @@ interface IncomingLocationPayload {
   cors: {
     origin: '*',
   },
+  transports: ['websocket', 'polling'],
 })
 export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

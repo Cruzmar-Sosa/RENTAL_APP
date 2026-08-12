@@ -13,9 +13,17 @@ export class TransmissionManager implements ITransmissionManager {
     try {
       this.socketClient.emit('update_location', {
         bikeId: frame.bikeId,
+        // Use canonical field names (backend accepts both lat/lng and latitude/longitude)
+        latitude: frame.latitude,
+        longitude: frame.longitude,
         lat: frame.latitude,
         lng: frame.longitude,
         speed: frame.speed ?? 0,
+        heading: frame.heading ?? undefined,
+        batteryLevel: frame.batteryLevel,
+        frameId: frame.id,          // enables server-side deduplication
+        rideId: frame.rideId,       // enables session attribution
+        timestamp: frame.timestamp,
       });
       return true;
     } catch {

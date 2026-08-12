@@ -1,5 +1,6 @@
-import { StationBrowserScreen } from '@features/reservation';
+import React from 'react';
+import { Redirect } from 'expo-router';
 
 export default function MapRoute() {
-  return <StationBrowserScreen />;
+  return <Redirect href="/(app)/home" />;
 }
