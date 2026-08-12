@@ -27,6 +27,26 @@ export const ActiveReservationScreen: React.FC = () => {
 
   const rawStatusValue = activeReservation?.props.status.value;
 
+  // Auto-resume tracking engine on mount if ride is ACTIVE and engine is IDLE
+  useEffect(() => {
+    if (rawStatusValue !== 'ACTIVE' || !activeReservation) return;
+
+    const currentEngineState = trackingEngine.getState();
+    if (currentEngineState === 'IDLE') {
+      const bikeId = activeReservation.props.bikeId || activeReservation.props.bike?.id;
+      if (bikeId) {
+        trackingEngine
+          .start({
+            rideId: activeReservation.id,
+            bikeId,
+          })
+          .catch((err) => {
+            console.warn('⚠️ [TrackingEngine] Auto-resume failed:', err);
+          });
+      }
+    }
+  }, [rawStatusValue, activeReservation?.id, activeReservation?.props.bikeId, activeReservation?.props.bike?.id]);
+
   // Protect ACTIVE ride from accidental hardware back navigation (Android)
   useEffect(() => {
     if (rawStatusValue !== 'ACTIVE') return;

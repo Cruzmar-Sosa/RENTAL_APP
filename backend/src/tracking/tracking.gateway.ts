@@ -41,6 +41,7 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   private readonly logger = new Logger(TrackingGateway.name);
   private lastDbUpdateAtMap = new Map<string, number>();
+  private disconnectTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     private readonly trackingService: TrackingService,
@@ -55,7 +56,15 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.logger.log(`[Socket] Client disconnected: ${client.id}`);
     const bikeId = await this.redisService.getBikeBySocket(client.id);
     if (bikeId) {
-      await this.clearSession(bikeId);
+      // 5-second grace period before clearing session lock
+      if (this.disconnectTimers.has(bikeId)) {
+        clearTimeout(this.disconnectTimers.get(bikeId));
+      }
+      const timer = setTimeout(() => {
+        this.clearSession(bikeId).catch(() => {});
+        this.disconnectTimers.delete(bikeId);
+      }, 5000);
+      this.disconnectTimers.set(bikeId, timer);
     }
   }
 
@@ -95,6 +104,12 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
       this.logger.warn(`[Telemetry] Rejected invalid payload structure from socket ${client.id}`);
       client.emit('tracking_error', { message: '🚫 Formato de datos de telemetría inválido' });
       return { error: 'Invalid payload' };
+    }
+
+    // Cancel any pending disconnect grace period for this bike
+    if (this.disconnectTimers.has(bikeId)) {
+      clearTimeout(this.disconnectTimers.get(bikeId));
+      this.disconnectTimers.delete(bikeId);
     }
 
     // Bounds check

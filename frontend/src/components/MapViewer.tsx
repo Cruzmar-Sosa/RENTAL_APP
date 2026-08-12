@@ -155,6 +155,14 @@ interface MapViewerProps {
   } | null;
 }
 
+export function getFreshnessState(loc: LiveLocation): 'LIVE' | 'STALE' | 'OFFLINE' {
+  if (loc.connection === 'disconnected') return 'OFFLINE';
+  const ageMs = Date.now() - new Date(loc.timestamp).getTime();
+  if (isNaN(ageMs) || ageMs > 45000) return 'OFFLINE';
+  if (ageMs > 15000) return 'STALE';
+  return 'LIVE';
+}
+
 export default function MapViewer({ initialBikes, onSocketStatusChange, selectedRoute }: MapViewerProps) {
   const [locations, setLocations] = useState<Record<string, LiveLocation>>({});
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -221,27 +229,39 @@ export default function MapViewer({ initialBikes, onSocketStatusChange, selected
 
   return (
     <div className="relative w-full h-full" style={{ borderRadius: 'inherit' }}>
-      {/* UI Overlay para Follow Mode */}
-      <div className="absolute top-4 right-4 z-400 bg-white rounded-xl shadow-lg border p-3 flex flex-col gap-2 max-h-60 overflow-y-auto min-w-[200px]">
+      {/* UI Overlay para Follow Mode & Freshness State */}
+      <div className="absolute top-4 right-4 z-400 bg-white rounded-xl shadow-lg border p-3 flex flex-col gap-2 max-h-60 overflow-y-auto min-w-[220px]">
         <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider mb-1">Active In-Use Units</h4>
-        {Object.values(locations).map((loc) => (
-          <button
-            key={loc.bikeId}
-            onClick={() => setSelectedBikeId(selectedBikeId === loc.bikeId ? null : loc.bikeId)}
-            className={cn(
-              'text-sm font-medium text-left px-3 py-2 rounded-lg transition hover:bg-gray-50 flex items-center justify-between',
-              selectedBikeId === loc.bikeId && 'bg-blue-50 text-blue-700 border border-blue-100'
-            )}
-          >
-            Bike #{loc.bikeId.slice(0, 6)}
-            <span
+        {Object.values(locations).map((loc) => {
+          const freshness = getFreshnessState(loc);
+          return (
+            <button
+              key={loc.bikeId}
+              onClick={() => setSelectedBikeId(selectedBikeId === loc.bikeId ? null : loc.bikeId)}
               className={cn(
-                'inline-block w-2.5 h-2.5 rounded-full shadow-inner',
-                loc.connection === 'connected' ? 'bg-green-500' : 'bg-gray-400 animate-pulse'
+                'text-sm font-medium text-left px-3 py-2 rounded-lg transition hover:bg-gray-50 flex items-center justify-between gap-2 border',
+                selectedBikeId === loc.bikeId ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' : 'border-transparent'
               )}
-            />
-          </button>
-        ))}
+            >
+              <div className="flex flex-col">
+                <span className="font-bold text-slate-800">Bike #{loc.bikeId.slice(0, 6)}</span>
+                <span className="text-[10px] text-gray-400">
+                  {loc.speed ?? 0} km/h {loc.batteryLevel !== undefined ? `• 🔋 ${loc.batteryLevel}%` : ''}
+                </span>
+              </div>
+              <span
+                className={cn(
+                  'text-[9px] font-black uppercase px-2 py-0.5 rounded-full border',
+                  freshness === 'LIVE' && 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                  freshness === 'STALE' && 'bg-amber-50 text-amber-700 border-amber-200',
+                  freshness === 'OFFLINE' && 'bg-slate-100 text-slate-500 border-slate-200'
+                )}
+              >
+                {freshness}
+              </span>
+            </button>
+          );
+        })}
         {Object.keys(locations).length === 0 && (
           <span className="text-sm text-gray-400 italic px-1">Sin unidades activas</span>
         )}

@@ -19,9 +19,9 @@ export class SocketClient implements ISocketClient {
       this.socket = io(url, {
         path: '/socket.io',
         ...(token ? { auth: { token: `Bearer ${token}` } } : {}),
-        transports: ['websocket'],
+        transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: 10,
+        reconnectionAttempts: 20,
         reconnectionDelay: 1000,
         timeout: 10000,
       });
