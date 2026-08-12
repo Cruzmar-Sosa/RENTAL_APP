@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -19,7 +19,7 @@ L.Icon.Default.mergeOptions({
 
 // Custom icon for bikes
 const bikeIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', // A free bike icon URL
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png',
   iconSize: [32, 32],
   iconAnchor: [16, 32],
   popupAnchor: [0, -32],
@@ -30,20 +30,119 @@ export interface LiveLocation {
   lat: number;
   lng: number;
   speed: number;
+  heading?: number;
+  batteryLevel?: number;
   timestamp: string;
   connection?: 'connected' | 'disconnected';
 }
 
-function FocusController({ locations, selectedBikeId }: { locations: Record<string, LiveLocation>, selectedBikeId: string | null }) {
+/**
+ * Controller to handle flyTo for selected bike or auto-fitting bounds for active units
+ */
+function ViewportController({
+  locations,
+  selectedBikeId,
+}: {
+  locations: Record<string, LiveLocation>;
+  selectedBikeId: string | null;
+}) {
   const map = useMap();
-  const loc = selectedBikeId ? locations[selectedBikeId] : null;
+  const locList = Object.values(locations).filter((l) => isValidCoordinate(l.lat, l.lng));
 
   useEffect(() => {
-    if (loc && isValidCoordinate(loc.lat, loc.lng)) {
-      map.flyTo([loc.lat, loc.lng], 17, { duration: 1.2 });
+    // 1. Focus on specific selected unit
+    if (selectedBikeId && locations[selectedBikeId]) {
+      const loc = locations[selectedBikeId];
+      if (isValidCoordinate(loc.lat, loc.lng)) {
+        map.flyTo([loc.lat, loc.lng], 17, { duration: 1.2 });
+        return;
+      }
     }
-  }, [selectedBikeId, loc?.lat, loc?.lng, map]);
+
+    // 2. Auto-fit bounds for active units if no specific unit is locked
+    if (!selectedBikeId && locList.length > 0) {
+      if (locList.length === 1 && locList[0]) {
+        map.flyTo([locList[0].lat, locList[0].lng], 16, { duration: 1.0 });
+      } else {
+        const bounds = L.latLngBounds(locList.map((l) => [l.lat, l.lng]));
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+      }
+    }
+  }, [selectedBikeId, JSON.stringify(locList.map((l) => `${l.bikeId}:${l.lat}:${l.lng}`)), map]);
+
   return null;
+}
+
+/**
+ * Smooth Animated Marker (Uber / PedidosYa LERP Interpolation)
+ */
+function SmoothMarker({ loc }: { loc: LiveLocation }) {
+  const [currentPos, setCurrentPos] = useState<[number, number]>([loc.lat, loc.lng]);
+  const animRef = useRef<number | null>(null);
+  const startPosRef = useRef<[number, number]>([loc.lat, loc.lng]);
+  const startTimeRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    const targetPos: [number, number] = [loc.lat, loc.lng];
+    const startPos = currentPos;
+    startPosRef.current = startPos;
+    startTimeRef.current = Date.now();
+    const duration = 1500; // Smooth 1.5s transition
+
+    const animate = () => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const progress = Math.min(1, elapsed / duration);
+      // Ease-out cubic interpolation
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+      const lat = startPosRef.current[0] + (targetPos[0] - startPosRef.current[0]) * easeProgress;
+      const lng = startPosRef.current[1] + (targetPos[1] - startPosRef.current[1]) * easeProgress;
+
+      setCurrentPos([lat, lng]);
+
+      if (progress < 1) {
+        animRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    animRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, [loc.lat, loc.lng]);
+
+  return (
+    <>
+      <CircleMarker
+        center={currentPos}
+        radius={24}
+        pathOptions={{
+          color: loc.connection === 'connected' ? '#22c55e' : '#9ca3af',
+          fillColor: loc.connection === 'connected' ? '#22c55e' : '#9ca3af',
+          fillOpacity: 0.2,
+          weight: 2,
+          opacity: 0.6,
+        }}
+      />
+      <Marker position={currentPos} icon={bikeIcon}>
+        <Popup>
+          <div className="font-bold">Bike #{loc.bikeId.slice(0, 8)}</div>
+          <div className="text-xs">Velocidad: {loc.speed ?? 0} km/h</div>
+          {loc.batteryLevel !== undefined && (
+            <div className="text-xs">Batería: 🔋 {loc.batteryLevel}%</div>
+          )}
+          <div className="text-[10px] text-gray-500 mt-1 uppercase font-bold">
+            [{loc.connection === 'connected' ? 'ONLINE' : 'OFFLINE'}]
+          </div>
+          <div className="text-[10px] text-gray-400">
+            Actualizado: {new Date(loc.timestamp).toLocaleTimeString()}
+          </div>
+        </Popup>
+      </Marker>
+    </>
+  );
 }
 
 interface MapViewerProps {
@@ -67,15 +166,18 @@ export default function MapViewer({ initialBikes, onSocketStatusChange, selected
   }, []);
 
   useEffect(() => {
-    // Definimos URL base vacia si no existe, o tomamos de entorno
-    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    const rawWsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://192.168.1.77:3001';
+    const wsUrl = rawWsUrl.startsWith('http') ? rawWsUrl : `http://${rawWsUrl}`;
 
     const s = io(`${wsUrl}/tracking`, {
-    path: '/socket.io',
-    transports: ['websocket'], // opcional pero recomendado en prod
-  });
+      path: '/socket.io',
+      transports: ['websocket', 'polling'], // Fallback enabled
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1000,
+    });
 
-    console.log("📡 MAPVIEWER INICIANDO CONEXIÓN A:", `${wsUrl}/tracking`);
+    console.log('📡 MAPVIEWER INICIANDO CONEXIÓN A:', `${wsUrl}/tracking`);
     setSocket(s);
 
     s.on('connect', () => {
@@ -89,28 +191,23 @@ export default function MapViewer({ initialBikes, onSocketStatusChange, selected
     });
 
     s.on('location_updated', (data: LiveLocation) => {
-      setLocations((prev) => ({
-        ...prev,
-        [data.bikeId]: {
-          ...(prev[data.bikeId] || {}),
-          ...data
-        },
-      }));
+      if (data.bikeId && isValidCoordinate(data.lat, data.lng)) {
+        setLocations((prev) => ({
+          ...prev,
+          [data.bikeId]: {
+            ...(prev[data.bikeId] || {}),
+            ...data,
+          },
+        }));
+      }
     });
 
     return () => {
       s.disconnect();
     };
-  }, [onSocketStatusChange]); // Removed initialBikes to fix infinite reconnect loop
+  }, [onSocketStatusChange]);
 
-  useEffect(() => {
-    // Populate initial locations based on latest known bikes if needed
-    if (initialBikes && initialBikes.length > 0) {
-       // Mock or populate from real initial data
-    }
-  }, [initialBikes]);
-
-  const defaultCenter: [number, number] = [12.434950279249428, -86.87813296257922]; // León, Nicaragua default
+  const defaultCenter: [number, number] = [12.434950279249428, -86.87813296257922]; // León default
   const parsedPolyline = safeParsePolyline(selectedRoute?.navigationPolyline || selectedRoute?.visualPolyline);
   const polylinePositions = parsedPolyline.map((p) => [p.lat, p.lng] as [number, number]);
 
@@ -124,24 +221,25 @@ export default function MapViewer({ initialBikes, onSocketStatusChange, selected
 
   return (
     <div className="relative w-full h-full" style={{ borderRadius: 'inherit' }}>
-      
       {/* UI Overlay para Follow Mode */}
       <div className="absolute top-4 right-4 z-400 bg-white rounded-xl shadow-lg border p-3 flex flex-col gap-2 max-h-60 overflow-y-auto min-w-[200px]">
         <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider mb-1">Active In-Use Units</h4>
-        {Object.values(locations).map(loc => (
-          <button 
-            key={loc.bikeId} 
+        {Object.values(locations).map((loc) => (
+          <button
+            key={loc.bikeId}
             onClick={() => setSelectedBikeId(selectedBikeId === loc.bikeId ? null : loc.bikeId)}
             className={cn(
-              "text-sm font-medium text-left px-3 py-2 rounded-lg transition hover:bg-gray-50 flex items-center justify-between", 
-              selectedBikeId === loc.bikeId && "bg-blue-50 text-blue-700 border border-blue-100"
+              'text-sm font-medium text-left px-3 py-2 rounded-lg transition hover:bg-gray-50 flex items-center justify-between',
+              selectedBikeId === loc.bikeId && 'bg-blue-50 text-blue-700 border border-blue-100'
             )}
           >
-            Bike #{loc.bikeId.slice(0,6)} 
-            <span className={cn(
-              "inline-block w-2.5 h-2.5 rounded-full shadow-inner", 
-              loc.connection === 'connected' ? 'bg-green-500' : 'bg-gray-400 animate-pulse'
-            )} />
+            Bike #{loc.bikeId.slice(0, 6)}
+            <span
+              className={cn(
+                'inline-block w-2.5 h-2.5 rounded-full shadow-inner',
+                loc.connection === 'connected' ? 'bg-green-500' : 'bg-gray-400 animate-pulse'
+              )}
+            />
           </button>
         ))}
         {Object.keys(locations).length === 0 && (
@@ -160,42 +258,18 @@ export default function MapViewer({ initialBikes, onSocketStatusChange, selected
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          {/* Focus dynamic control */}
-          <FocusController locations={locations} selectedBikeId={selectedBikeId} />
+          {/* Viewport controller for auto-center & flyTo */}
+          <ViewportController locations={locations} selectedBikeId={selectedBikeId} />
 
           {/* Render selected route */}
           {selectedRoute && polylinePositions.length > 0 && (
             <Polyline positions={polylinePositions} color="blue" weight={5} opacity={0.6} />
           )}
 
-          {/* Render bike locations */}
+          {/* Render smooth animated bike markers */}
           {Object.values(locations).map((loc) => {
             if (!isValidCoordinate(loc.lat, loc.lng)) return null;
-            return (
-              <div key={loc.bikeId}>
-                <CircleMarker 
-                  center={[loc.lat, loc.lng]} 
-                  radius={24} 
-                  pathOptions={{
-                    color: loc.connection === 'connected' ? '#22c55e' : '#9ca3af',
-                    fillColor: loc.connection === 'connected' ? '#22c55e' : '#9ca3af',
-                    fillOpacity: 0.2,
-                    weight: 2,
-                    opacity: 0.6
-                  }}
-                />
-                <Marker position={[loc.lat, loc.lng]} icon={bikeIcon}>
-                  <Popup>
-                    <div className="font-bold">Bike #{loc.bikeId.slice(0, 8)}</div>
-                    <div className="text-xs">Velocidad: {loc.speed} km/h</div>
-                    <div className="text-[10px] text-gray-500 mt-1 uppercase font-bold">
-                      [{loc.connection === 'connected' ? 'ONLINE' : 'OFFLINE'}]
-                    </div>
-                    <div className="text-[10px] text-gray-400">Actualizado: {new Date(loc.timestamp).toLocaleTimeString()}</div>
-                  </Popup>
-                </Marker>
-              </div>
-            );
+            return <SmoothMarker key={loc.bikeId} loc={loc} />;
           })}
         </MapContainer>
       </MapErrorBoundary>

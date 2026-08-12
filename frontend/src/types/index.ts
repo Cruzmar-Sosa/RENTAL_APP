@@ -35,6 +35,7 @@ export interface Bike {
   technicalStatus: 'OK' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
   imageUrl?: string | null;
   imageKey?: string | null;
+  depositRequired?: boolean;
   stationId: string;
   station?: Station;
 }

@@ -7,21 +7,23 @@ import { PaymentForm, PaymentDetails } from './PaymentForm';
 
 interface CheckoutModalProps {
   isOpen: boolean;
+  onClose?: () => void;
   bike: {
     id: string;
-    model: string;
+    model?: string;
     code: number;
-    imageKey?: string;
+    imageKey?: string | null;
+    depositRequired?: boolean;
   };
-  reservationDetails: {
-    id: string;
-    estimatedDuration: number; // in minutes
-    depositRequired: boolean;
-    estimatedCost: number;
+  reservationDetails?: {
+    id?: string;
+    estimatedDuration?: number; // in minutes
+    depositRequired?: boolean;
+    estimatedCost?: number;
   };
   isLoading?: boolean;
   error?: string | null;
-  onConfirm: (paymentDetails: PaymentDetails) => Promise<void>;
+  onConfirm?: (paymentDetails: PaymentDetails) => Promise<void>;
   onCancel?: () => void;
 }
 
@@ -31,6 +33,7 @@ interface CheckoutModalProps {
  */
 export function CheckoutModal({
   isOpen,
+  onClose,
   bike,
   reservationDetails,
   isLoading = false,
@@ -51,10 +54,18 @@ export function CheckoutModal({
   const handleCancel = () => {
     setStep('review');
     onCancel?.();
+    onClose?.();
   };
 
-  const depositAmount = reservationDetails.depositRequired ? reservationDetails.estimatedCost * 0.2 : 0;
-  const finalCost = reservationDetails.estimatedCost;
+  const resDetails = {
+    id: reservationDetails?.id || '',
+    estimatedDuration: reservationDetails?.estimatedDuration || 120,
+    depositRequired: reservationDetails?.depositRequired ?? bike.depositRequired ?? true,
+    estimatedCost: reservationDetails?.estimatedCost || 50,
+  };
+
+  const depositAmount = resDetails.depositRequired ? resDetails.estimatedCost * 0.2 : 0;
+  const finalCost = resDetails.estimatedCost;
 
   if (!isOpen) return null;
 
@@ -121,13 +132,13 @@ export function CheckoutModal({
                   <div className="flex justify-between">
                     <span className="text-gray-600">Estimated Duration:</span>
                     <span className="font-semibold text-gray-900">
-                      {Math.ceil(reservationDetails.estimatedDuration / 60)} hours
+                      {Math.ceil(resDetails.estimatedDuration / 60)} hours
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Estimated Rate:</span>
                     <span className="font-semibold text-gray-900">
-                      ${(finalCost / (Math.ceil(reservationDetails.estimatedDuration / 60) || 1)).toFixed(2)}/hr
+                      ${(finalCost / (Math.ceil(resDetails.estimatedDuration / 60) || 1)).toFixed(2)}/hr
                     </span>
                   </div>
                 </div>
@@ -141,7 +152,7 @@ export function CheckoutModal({
                     <span className="text-gray-700">Rental Cost:</span>
                     <span className="font-semibold text-gray-900">${finalCost.toFixed(2)}</span>
                   </div>
-                  {reservationDetails.depositRequired && (
+                  {resDetails.depositRequired && (
                     <>
                       <div className="flex justify-between text-blue-600">
                         <span>Deposit (20%):</span>
@@ -160,7 +171,7 @@ export function CheckoutModal({
                       </p>
                     </>
                   )}
-                  {!reservationDetails.depositRequired && (
+                  {!resDetails.depositRequired && (
                     <div className="border-t border-blue-200 pt-2 flex justify-between">
                       <span className="text-lg font-bold text-blue-900">Total:</span>
                       <span className="text-xl font-bold text-blue-600">
@@ -209,10 +220,10 @@ export function CheckoutModal({
 
               <PaymentForm
                 amount={depositAmount || finalCost}
-                reservationId={reservationDetails.id}
-                depositAmount={reservationDetails.depositRequired ? depositAmount : undefined}
+                reservationId={resDetails.id}
+                depositAmount={resDetails.depositRequired ? depositAmount : undefined}
                 isLoading={isLoading}
-                onSubmit={onConfirm}
+                onSubmit={onConfirm || (async () => {})}
                 onCancel={handleBackToReview}
               />
             </motion.div>
